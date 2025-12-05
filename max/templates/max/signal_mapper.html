@@ -1,0 +1,85 @@
+{% extends "max/base.html" %}
+{% load static %}
+
+{% block title %}MeshCore Signal Mapper{% endblock %}
+
+{% block content %}
+<div id="app">
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Control Sidebar -->
+    <div id="sidebar">
+        <h1>Signal Mapper</h1>
+
+        <!-- BLE Connection Section -->
+        <div class="section">
+            <h2>1. Connect to Radio</h2>
+            <div id="connection-status" class="status disconnected">Disconnected</div>
+            <button id="btn-connect" class="btn btn-primary">Connect via BLE</button>
+        </div>
+
+        <!-- Repeater Selection -->
+        <div class="section" id="repeater-section" style="display: none;">
+            <h2>2. Select Target Repeater</h2>
+            <select id="repeater-select" class="select">
+                <option value="">-- Select Repeater --</option>
+            </select>
+        </div>
+
+        <!-- Collection Controls -->
+        <div class="section" id="collection-section" style="display: none;">
+            <h2>3. Collect Measurements</h2>
+
+            <div class="mode-toggle">
+                <label>
+                    <input type="radio" name="mode" value="manual" checked>
+                    Manual
+                </label>
+                <label>
+                    <input type="radio" name="mode" value="continuous">
+                    Continuous
+                </label>
+            </div>
+
+            <div id="continuous-options" style="display: none;">
+                <label for="interval">Interval (seconds):</label>
+                <input type="number" id="interval" min="1" max="60" value="5" class="input">
+            </div>
+
+            <div class="button-group">
+                <button id="btn-collect" class="btn btn-success">Collect Now</button>
+                <button id="btn-start-continuous" class="btn btn-success" style="display: none;">Start Collection</button>
+                <button id="btn-stop-continuous" class="btn btn-danger" style="display: none;">Stop Collection</button>
+            </div>
+
+            <!-- Session Info -->
+            <div class="session-info">
+                <div>Session ID: <span id="session-id">-</span></div>
+                <div>Measurements: <span id="measurement-count">0</span></div>
+                <div>Last RSSI: <span id="last-rssi">-</span> dBm</div>
+                <div>Last SNR: <span id="last-snr">-</span> dB</div>
+                <div>GPS Accuracy: <span id="gps-accuracy">-</span>m</div>
+            </div>
+        </div>
+
+        <!-- Heatmap Controls -->
+        <div class="section" id="heatmap-section" style="display: none;">
+            <h2>4. View Heatmap</h2>
+            <button id="btn-load-heatmap" class="btn btn-secondary">Load Heatmap</button>
+            <button id="btn-clear-heatmap" class="btn btn-secondary">Clear Heatmap</button>
+        </div>
+
+        <!-- Status Messages -->
+        <div id="status-messages"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Load modules as type=module for modern browsers -->
+<script type="module" src="{% static 'max/js/ble-connection.js' %}"></script>
+<script type="module" src="{% static 'max/js/measurement-collector.js' %}"></script>
+<script type="module" src="{% static 'max/js/heatmap-renderer.js' %}"></script>
+<script type="module" src="{% static 'max/js/signal-mapper.js' %}"></script>
+{% endblock %}

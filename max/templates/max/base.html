@@ -1,0 +1,26 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{% block title %}Signal Mapper{% endblock %}</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="{% static 'max/vendor/leaflet/leaflet.css' %}">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'max/css/signal-mapper.css' %}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% block content %}{% endblock %}
+
+    <!-- Leaflet JS -->
+    <script src="{% static 'max/vendor/leaflet/leaflet.js' %}"></script>
+    <script src="{% static 'max/vendor/leaflet-heat.js' %}"></script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
