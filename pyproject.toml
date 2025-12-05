@@ -10,7 +10,10 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "django~=6.0",
+    "django-filter~=25.1",
     "djangorestframework~=3.16",
+    "djangorestframework-gis~=1.2",
+    "psycopg~=3.3",
     "meshcore~=2.2",
 ]
 

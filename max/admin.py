@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Node, RepeaterStats, NeighbourInfo, User
+from django.contrib.gis.admin import GISModelAdmin
+from .models import Node, RepeaterStats, NeighbourInfo, SignalMeasurement, User
 
 
 @admin.register(User)
@@ -11,15 +12,15 @@ class UserAdmin(admin.ModelAdmin):
 
 
 @admin.register(Node)
-class NodeAdmin(admin.ModelAdmin):
+class NodeAdmin(GISModelAdmin):
     list_display = ["name", "mesh_identity", "role", "owner", "is_active", "is_favourite", "last_seen"]
     list_filter = ["role", "is_active", "is_favourite", "firmware_version"]
     search_fields = ["name", "mesh_identity", "public_key", "description"]
-    readonly_fields = ["first_seen", "last_seen"]
+    readonly_fields = ["first_seen", "last_seen", "latitude", "longitude"]
     fieldsets = [
         ("Identity", {"fields": ["mesh_identity", "public_key", "firmware_version", "role"]}),
         ("Information", {"fields": ["name", "description", "owner"]}),
-        ("Location", {"fields": ["latitude", "longitude", "altitude"], "classes": ["collapse"]}),
+        ("Location", {"fields": ["location", "latitude", "longitude", "altitude"], "classes": ["collapse"]}),
         ("Status", {"fields": ["is_active", "is_favourite", "first_seen", "last_seen"]}),
     ]
 
@@ -66,4 +67,19 @@ class NeighbourInfoAdmin(admin.ModelAdmin):
         ("Relationship", {"fields": ["node", "neighbour"]}),
         ("Timestamps", {"fields": ["advert_timestamp", "heard_timestamp", "last_updated"]}),
         ("Signal Quality", {"fields": ["snr"]}),
+    ]
+
+
+@admin.register(SignalMeasurement)
+class SignalMeasurementAdmin(GISModelAdmin):
+    list_display = ["target_node", "timestamp", "rssi", "snr", "session_id", "gps_accuracy"]
+    list_filter = ["timestamp", "target_node", "session_id"]
+    search_fields = ["target_node__name", "target_node__mesh_identity"]
+    readonly_fields = ["timestamp"]
+    date_hierarchy = "timestamp"
+    fieldsets = [
+        ("Target", {"fields": ["target_node", "timestamp"]}),
+        ("Location", {"fields": ["location", "altitude", "gps_accuracy"]}),
+        ("Signal Data", {"fields": ["rssi", "snr"]}),
+        ("Session", {"fields": ["session_id", "collector_user"]}),
     ]

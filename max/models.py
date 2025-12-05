@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.contrib.gis.db import models as gis_models
 from django.db import models
 
 
@@ -34,8 +35,7 @@ class Node(models.Model):
     # Location and deployment info
     name = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    location = gis_models.PointField(srid=4326, null=True, blank=True, help_text="Geographic location (lon, lat)")
     altitude = models.DecimalField(
         max_digits=7,
         decimal_places=2,
@@ -57,6 +57,16 @@ class Node(models.Model):
 
     def __str__(self):
         return self.name or self.mesh_identity
+
+    @property
+    def latitude(self):
+        """Backwards compatibility property for latitude"""
+        return self.location.y if self.location else None
+
+    @property
+    def longitude(self):
+        """Backwards compatibility property for longitude"""
+        return self.location.x if self.location else None
 
 
 class RepeaterStats(models.Model):
@@ -125,3 +135,58 @@ class NeighbourInfo(models.Model):
 
     def __str__(self):
         return f"{self.neighbour} (neighbour of {self.node})"
+
+
+class SignalMeasurement(models.Model):
+    """
+    Stores signal strength measurements collected from field testing.
+    Used for generating signal coverage heatmaps.
+    """
+
+    # Location (GeoDjango PointField - lon, lat order)
+    location = gis_models.PointField(srid=4326, help_text="GPS coordinates (lon, lat)")
+    altitude = models.DecimalField(
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Altitude in meters (from browser geolocation, may be null)",
+    )
+    gps_accuracy = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="GPS horizontal accuracy in meters (from browser)",
+    )
+
+    # Target node and signal data
+    target_node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="signal_measurements")
+    rssi = models.SmallIntegerField(help_text="Received Signal Strength Indicator in dBm")
+    snr = models.SmallIntegerField(help_text="Signal-to-Noise Ratio in dB")
+
+    # Collection metadata
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    session_id = models.UUIDField(null=True, blank=True, db_index=True, help_text="Groups measurements from same session")
+
+    # Optional user tracking
+    collector_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="measurements",
+        help_text="User who collected this measurement",
+    )
+
+    class Meta:
+        verbose_name = "Signal Measurement"
+        verbose_name_plural = "Signal Measurements"
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=["target_node", "-timestamp"]),
+            models.Index(fields=["session_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.target_node} @ {self.location} - RSSI: {self.rssi}dBm"
