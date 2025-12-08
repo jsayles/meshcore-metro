@@ -106,9 +106,6 @@ The system automatically falls back to mock mode if the radio isn't connected or
 # Run with Channels/WebSocket support (REQUIRED for Signal Mapper)
 uv run daphne -b 0.0.0.0 -p 8000 max.asgi:application
 
-# Traditional Django (no WebSocket - Signal Mapper won't work, but admin/API will)
-uv run python manage.py runserver
-
 # Find connected USB radios
 uv run python manage.py find_usb_radio
 uv run python manage.py find_usb_radio --test
