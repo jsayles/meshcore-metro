@@ -125,6 +125,11 @@ uv run python manage.py createsuperuser
 
 # Run tests
 uv run python manage.py test --parallel auto
+
+# Manage dependencies
+uv pip list --outdated
+uv lock --upgrade
+uv sync
 ```
 
 ## Project Structure
