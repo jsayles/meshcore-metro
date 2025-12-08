@@ -10,27 +10,33 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-upmjwp^-n6p*5=t1-(_3q!wjarpv9z0_m%#0^9pxjhmdm1u)8h"
+SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-upmjwp^-n6p*5=t1-(_3q!wjarpv9z0_m%#0^9pxjhmdm1u)8h")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,meshmap.local,*.local").split(",")
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -38,6 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.gis",
+    "channels",
     "rest_framework",
     "rest_framework_gis",
     "max",
@@ -46,6 +53,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Serve static files with Daphne
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -72,7 +80,17 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "max.wsgi.application"
+ASGI_APPLICATION = "max.asgi.application"
 
+# Django Channels
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -129,6 +147,15 @@ STATICFILES_DIRS = [
     BASE_DIR / "max" / "static",
 ]
 
+# WhiteNoise configuration for serving static files with Daphne
+# Using CompressedStaticFilesStorage instead of CompressedManifestStaticFilesStorage
+# to avoid issues with missing source maps in vendor files
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -151,3 +178,9 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.BrowsableAPIRenderer",
     ],
 }
+
+# MeshCore Radio Configuration
+MESHCORE_SERIAL_PORT = os.environ.get("SERIAL_PORT", "/dev/ttyACM0")
+MESHCORE_BAUD_RATE = int(os.environ.get("SERIAL_BAUD_RATE", "115200"))
+MESHCORE_POLL_INTERVAL = int(os.environ.get("MESHCORE_POLL_INTERVAL", "5"))  # seconds
+MESHCORE_USE_MOCK = os.environ.get("USE_MOCK_RADIO", "False") == "True"

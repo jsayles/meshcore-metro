@@ -1,17 +1,17 @@
 /**
  * Signal Mapper Main Application
  *
- * Coordinates BLE connection, measurement collection, and heatmap rendering.
+ * Coordinates Pi WebSocket connection, measurement collection, and heatmap rendering.
  */
 
-import { BLEConnection } from './ble-connection.js';
+import { PiConnection } from './pi-connection.js';
 import { MeasurementCollector } from './measurement-collector.js';
 import { HeatmapRenderer } from './heatmap-renderer.js';
 
 class SignalMapper {
     constructor() {
         this.map = null;
-        this.bleConnection = new BLEConnection();
+        this.piConnection = new PiConnection();
         this.collector = null;
         this.heatmapRenderer = null;
         this.sessionId = this.generateUUID();
@@ -41,7 +41,7 @@ class SignalMapper {
         document.getElementById('session-id').textContent = this.sessionId.substring(0, 8);
 
         // Show status message
-        this.showMessage('Ready to connect. Click "Connect via BLE" to start.', 'info');
+        this.showMessage('Ready to connect. Click "Connect to Pi" to start.', 'info');
 
         // Try to get user's location to center map
         this.centerMapOnUser();
@@ -51,8 +51,8 @@ class SignalMapper {
      * Setup UI event handlers
      */
     setupEventHandlers() {
-        // BLE Connection
-        document.getElementById('btn-connect').addEventListener('click', () => this.connectBLE());
+        // Pi Connection
+        document.getElementById('btn-connect').addEventListener('click', () => this.connectToPi());
 
         // Repeater selection
         document.getElementById('repeater-select').addEventListener('change', (e) => {
@@ -99,9 +99,9 @@ class SignalMapper {
     }
 
     /**
-     * Connect to BLE device
+     * Connect to Pi via WebSocket
      */
-    async connectBLE() {
+    async connectToPi() {
         const btn = document.getElementById('btn-connect');
         const status = document.getElementById('connection-status');
 
@@ -109,17 +109,22 @@ class SignalMapper {
             btn.disabled = true;
             btn.textContent = 'Connecting...';
 
-            // For MVP, skip actual BLE connection and use mock data
-            this.bleConnection.useMockData = true;
-            this.bleConnection.isConnected = true;
+            // Set up connection state callback
+            this.piConnection.onConnectionChange = (connected) => {
+                if (connected) {
+                    status.textContent = 'Connected to Pi';
+                    status.className = 'status connected';
+                } else {
+                    status.textContent = 'Disconnected';
+                    status.className = 'status disconnected';
+                }
+            };
 
-            // await this.bleConnection.connect();
+            // Connect to Pi WebSocket
+            await this.piConnection.connect();
 
-            status.textContent = 'Connected (Mock Mode)';
-            status.className = 'status connected';
             btn.textContent = 'Connected';
-
-            this.showMessage('Connected successfully! Select a target repeater.', 'success');
+            this.showMessage('Connected to Pi! GPS streaming started. Select a target repeater.', 'success');
 
             // Load repeaters
             await this.loadRepeaters();
@@ -190,7 +195,7 @@ class SignalMapper {
 
             if (!this.collector) {
                 this.collector = new MeasurementCollector(
-                    this.bleConnection,
+                    this.piConnection,
                     this.targetNodeId,
                     this.sessionId
                 );
@@ -224,7 +229,7 @@ class SignalMapper {
 
         if (!this.collector) {
             this.collector = new MeasurementCollector(
-                this.bleConnection,
+                this.piConnection,
                 this.targetNodeId,
                 this.sessionId
             );
@@ -264,7 +269,8 @@ class SignalMapper {
         document.getElementById('measurement-count').textContent = data.count;
         document.getElementById('last-rssi').textContent = data.rssi;
         document.getElementById('last-snr').textContent = data.snr;
-        document.getElementById('gps-accuracy').textContent = data.accuracy ? data.accuracy.toFixed(1) : '-';
+        // GPS accuracy not returned in WebSocket architecture
+        // (GPS is streamed separately from measurements)
     }
 
     /**

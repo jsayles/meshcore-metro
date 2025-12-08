@@ -12,11 +12,11 @@
     <div id="sidebar">
         <h1>Signal Mapper</h1>
 
-        <!-- BLE Connection Section -->
+        <!-- WebSocket Connection Section -->
         <div class="section">
-            <h2>1. Connect to Radio</h2>
+            <h2>1. Connect to Server</h2>
             <div id="connection-status" class="status disconnected">Disconnected</div>
-            <button id="btn-connect" class="btn btn-primary">Connect via BLE</button>
+            <button id="btn-connect" class="btn btn-primary">Connect</button>
         </div>
 
         <!-- Repeater Selection -->
@@ -78,7 +78,7 @@
 
 {% block scripts %}
 <!-- Load modules as type=module for modern browsers -->
-<script type="module" src="{% static 'max/js/ble-connection.js' %}"></script>
+<script type="module" src="{% static 'max/js/pi-connection.js' %}"></script>
 <script type="module" src="{% static 'max/js/measurement-collector.js' %}"></script>
 <script type="module" src="{% static 'max/js/heatmap-renderer.js' %}"></script>
 <script type="module" src="{% static 'max/js/signal-mapper.js' %}"></script>
