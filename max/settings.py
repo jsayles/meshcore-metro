@@ -98,7 +98,7 @@ CHANNEL_LAYERS = {
 DATABASES = {
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
-        "NAME": "meshcore_analytics",
+        "NAME": "maxdb",
         "USER": "postgres",
         "PASSWORD": "",
         "HOST": "localhost",

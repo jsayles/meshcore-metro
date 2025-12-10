@@ -40,6 +40,13 @@ class SignalMapper {
         // Display session ID
         document.getElementById('session-id').textContent = this.sessionId.substring(0, 8);
 
+        // Check for pre-selected node from query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const preSelectedNodeId = urlParams.get('node');
+        if (preSelectedNodeId) {
+            this.targetNodeId = parseInt(preSelectedNodeId);
+        }
+
         // Show status message
         this.showMessage('Ready to connect. Click "Connect" to start.', 'info');
 
@@ -177,8 +184,19 @@ class SignalMapper {
             const option = document.createElement('option');
             option.value = props.id;
             option.textContent = props.name || props.mesh_identity;
+
+            // Pre-select if this is the target node
+            if (this.targetNodeId && props.id === this.targetNodeId) {
+                option.selected = true;
+            }
             select.appendChild(option);
         });
+
+        // If a node was pre-selected, show collection and heatmap sections
+        if (this.targetNodeId) {
+            document.getElementById('collection-section').style.display = 'block';
+            document.getElementById('heatmap-section').style.display = 'block';
+        }
     }
 
     /**

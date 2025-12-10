@@ -1,0 +1,48 @@
+{% extends "max/base.html" %}
+{% load static %}
+
+{% block title %}MeshCore Network Overview{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'max/css/mesh-home.css' %}">
+{% endblock %}
+
+{% block content %}
+<div id="app">
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Info Panel (Floating) -->
+    <div id="info-panel">
+        <h1>Network Overview</h1>
+        <div class="stats">
+            <div class="stat">
+                <span class="stat-label">Repeaters:</span>
+                <span class="stat-value" id="repeater-count">-</span>
+            </div>
+        </div>
+        <div class="legend">
+            <h3>Status</h3>
+            <div class="legend-item">
+                <span class="legend-dot green"></span>
+                <span>Current (&lt;24h)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot yellow"></span>
+                <span>Recent (&lt;1 week)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot red"></span>
+                <span>Stale (&gt;1 week)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="status-messages"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'max/js/mesh-home.js' %}"></script>
+{% endblock %}

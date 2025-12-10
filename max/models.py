@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.contrib.gis.db import models as gis_models
 from django.db import models
+from django.urls import reverse
 
 
 class User(AbstractUser):
@@ -33,7 +34,7 @@ class Node(models.Model):
     # Location and deployment info
     name = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True)
-    location = gis_models.PointField(srid=4326, null=True, blank=True, help_text="Geographic location (lon, lat)")
+    location = gis_models.PointField(srid=4326, null=True, blank=True)
     altitude = models.DecimalField(
         max_digits=7,
         decimal_places=2,
@@ -41,11 +42,14 @@ class Node(models.Model):
         blank=True,
         help_text="Altitude in meters",
     )
+    estimated_range = models.PositiveIntegerField(
+        default=1000,
+        help_text="Estimated coverage range in meters (used for map visualization)",
+    )
 
     # Administrative fields
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="nodes", null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    is_favourite = models.BooleanField(default=False)
     first_seen = models.DateTimeField(auto_now_add=True)
     last_seen = models.DateTimeField(auto_now=True)
 
@@ -56,14 +60,15 @@ class Node(models.Model):
     def __str__(self):
         return self.name or self.mesh_identity
 
+    def get_absolute_url(self):
+        return reverse("node_detail", kwargs={"node_id": self.id})
+
     @property
     def latitude(self):
-        """Backwards compatibility property for latitude"""
         return self.location.y if self.location else None
 
     @property
     def longitude(self):
-        """Backwards compatibility property for longitude"""
         return self.location.x if self.location else None
 
 

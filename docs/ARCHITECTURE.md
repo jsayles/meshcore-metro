@@ -278,8 +278,8 @@ Both features share:
 
 **Node** - MeshCore mesh network devices (shared by both features)
 - Spatial: `PointField(srid=4326)` for GPS location
-- Fields: mesh_identity, public_key, name, role, firmware_version, is_active, is_favourite
-- Roles: REPEATER (0), CLIENT (1), GATEWAY (2), SENSOR (3)
+- Fields: mesh_identity, public_key, name, role, firmware_version, is_active
+- Roles: REPEATER (0), CLIENT (1)
 - Timestamps: first_seen, last_seen
 
 **RepeaterStats** - Telemetry from repeaters (Repeater Monitor)

@@ -3,6 +3,10 @@
 
 {% block title %}MeshCore Signal Mapper{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'max/css/signal-mapper.css' %}">
+{% endblock %}
+
 {% block content %}
 <div id="app">
     <!-- Map Container -->
@@ -10,6 +14,7 @@
 
     <!-- Control Sidebar -->
     <div id="sidebar">
+        <a href="/" class="back-link">← Back to Home</a>
         <h1>Signal Mapper</h1>
 
         <!-- WebSocket Connection Section -->

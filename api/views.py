@@ -6,11 +6,11 @@ from .serializers import NodeSerializer, SignalMeasurementSerializer
 
 class NodeViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint for listing Nodes (repeaters).
-    Read-only - used for selecting target repeater in frontend.
+    API endpoint for listing Nodes.
+    Read-only - used for node overview and selecting target repeaters in frontend.
     """
 
-    queryset = Node.objects.filter(role=Role.REPEATER, is_active=True).order_by("name")
+    queryset = Node.objects.all().order_by("name")
     serializer_class = NodeSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["is_active", "role"]

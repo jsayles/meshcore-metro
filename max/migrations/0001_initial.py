@@ -2,6 +2,7 @@
 
 import django.contrib.auth.models
 import django.contrib.auth.validators
+import django.contrib.gis.db.models.fields
 import django.db.models.deletion
 import django.utils.timezone
 from django.conf import settings
@@ -151,22 +152,12 @@ class Migration(migrations.Migration):
                         choices=[
                             (0, "Repeater"),
                             (1, "Client"),
-                            (2, "Gateway"),
-                            (3, "Sensor"),
                         ],
                         default=0,
                     ),
                 ),
                 ("name", models.CharField(blank=True, max_length=255)),
                 ("description", models.TextField(blank=True)),
-                (
-                    "latitude",
-                    models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True),
-                ),
-                (
-                    "longitude",
-                    models.DecimalField(blank=True, decimal_places=6, max_digits=9, null=True),
-                ),
                 (
                     "altitude",
                     models.DecimalField(
@@ -336,6 +327,81 @@ class Migration(migrations.Migration):
             ],
             options={
                 "unique_together": {("node", "neighbour")},
+            },
+        ),
+        migrations.AddField(
+            model_name="node",
+            name="estimated_range",
+            field=models.PositiveIntegerField(
+                default=1000, help_text="Estimated coverage range in meters (used for map visualization)"
+            ),
+        ),
+        migrations.AddField(
+            model_name="node",
+            name="location",
+            field=django.contrib.gis.db.models.fields.PointField(blank=True, null=True, srid=4326),
+        ),
+        migrations.CreateModel(
+            name="SignalMeasurement",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "location",
+                    django.contrib.gis.db.models.fields.PointField(help_text="GPS coordinates (lon, lat)", srid=4326),
+                ),
+                (
+                    "altitude",
+                    models.DecimalField(
+                        blank=True,
+                        decimal_places=2,
+                        help_text="Altitude in meters (from browser geolocation, may be null)",
+                        max_digits=7,
+                        null=True,
+                    ),
+                ),
+                (
+                    "gps_accuracy",
+                    models.DecimalField(
+                        blank=True,
+                        decimal_places=2,
+                        help_text="GPS horizontal accuracy in meters (from browser)",
+                        max_digits=6,
+                        null=True,
+                    ),
+                ),
+                ("rssi", models.SmallIntegerField(help_text="Received Signal Strength Indicator in dBm")),
+                ("snr", models.SmallIntegerField(help_text="Signal-to-Noise Ratio in dB")),
+                ("timestamp", models.DateTimeField(auto_now_add=True, db_index=True)),
+                (
+                    "session_id",
+                    models.UUIDField(blank=True, db_index=True, help_text="Groups measurements from same session", null=True),
+                ),
+                (
+                    "collector_user",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="User who collected this measurement",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="measurements",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "target_node",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, related_name="signal_measurements", to="max.node"
+                    ),
+                ),
+            ],
+            options={
+                "verbose_name": "Signal Measurement",
+                "verbose_name_plural": "Signal Measurements",
+                "ordering": ["-timestamp"],
+                "indexes": [
+                    models.Index(fields=["target_node", "-timestamp"], name="max_signalm_target__1ea2ce_idx"),
+                    models.Index(fields=["session_id"], name="max_signalm_session_94e660_idx"),
+                ],
             },
         ),
     ]

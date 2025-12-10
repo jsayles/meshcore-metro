@@ -5,5 +5,7 @@ from max import views
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/", include("api.urls")),
-    path("", views.signal_mapper, name="signal_mapper"),
+    path("", views.mesh_home, name="home"),
+    path("node/<int:node_id>/", views.node_detail, name="node_detail"),
+    path("mapper/", views.signal_mapper, name="signal_mapper"),
 ]

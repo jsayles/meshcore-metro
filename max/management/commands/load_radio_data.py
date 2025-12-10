@@ -72,16 +72,11 @@ class Command(BaseCommand):
             firmware_type = contact.get("type", 0)
             role = Role.CLIENT if firmware_type == 1 else Role.REPEATER
 
-            # Check if contact is marked as favourite (typically bit 0 of flags)
-            flags = contact.get("flags", 0)
-            is_favourite = bool(flags & 0x01)
-
             # Prepare location data if available
             defaults = {
                 "public_key": public_key,
                 "name": contact.get("adv_name", ""),
                 "role": role,
-                "is_favourite": is_favourite,
                 "last_seen": timezone.now(),
             }
 
