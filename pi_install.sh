@@ -4,6 +4,7 @@
 
 set -e  # Exit on any error
 
+echo ""
 echo "=================================="
 echo "MeshCore METRO - Pi Installation"
 echo "=================================="
@@ -57,9 +58,12 @@ sudo -u postgres psql -c "DROP DATABASE IF EXISTS metrodb;" 2>/dev/null || true
 sudo -u postgres createdb metrodb
 sudo -u postgres psql metrodb -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
-# Generate random password for postgres
-DB_PASSWORD=$(openssl rand -base64 12)
-sudo -u postgres psql -c "ALTER USER postgres PASSWORD '$DB_PASSWORD';"
+# Create a database user for the current system user (for peer authentication)
+echo "=> Creating database user for $USER..."
+sudo -u postgres psql -c "DROP USER IF EXISTS $USER;" 2>/dev/null || true
+sudo -u postgres psql -c "CREATE USER $USER WITH PASSWORD '';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE metrodb TO $USER;"
+sudo -u postgres psql metrodb -c "GRANT ALL ON SCHEMA public TO $USER;"
 
 # Install Python dependencies first
 echo "=> Installing Python dependencies..."
@@ -67,10 +71,18 @@ uv sync
 
 # Create .env file
 echo "=> Creating .env configuration..."
+echo "   Generating Django SECRET_KEY..."
 SECRET_KEY=$(uv run python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
+
+if [ -z "$SECRET_KEY" ]; then
+    echo "ERROR: Failed to generate SECRET_KEY"
+    exit 1
+fi
+
+echo "   Writing .env file..."
 cat > .env << EOF
-# Database
-DATABASE_URL=postgresql://postgres:$DB_PASSWORD@localhost:5432/metrodb
+# Database (using peer authentication - no password needed for local user)
+DATABASE_URL=postgresql://$USER@localhost:5432/metrodb
 
 # Django
 SECRET_KEY=$SECRET_KEY
@@ -80,6 +92,17 @@ ALLOWED_HOSTS=*
 # Redis
 REDIS_URL=redis://localhost:6379/0
 EOF
+
+echo ""
+echo "Generated .env file with DATABASE_URL:"
+echo "  postgresql://$USER@localhost:5432/metrodb"
+echo ""
+
+# Verify .env file was created
+if [ ! -f .env ]; then
+    echo "ERROR: Failed to create .env file"
+    exit 1
+fi
 
 echo "=> Running database migrations..."
 uv run python manage.py migrate
