@@ -34,11 +34,21 @@ sudo apt install -y \
 if ! command -v uv &> /dev/null; then
     echo "=> Installing uv (Python package manager)..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    # Add uv to PATH for this session
-    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
-else
-    # Ensure uv is in PATH
-    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+    # Source the environment file to add uv to PATH
+    if [ -f "$HOME/.local/bin/env" ]; then
+        source "$HOME/.local/bin/env"
+    fi
+fi
+
+# Ensure uv is in PATH
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+
+# Verify uv is available
+if ! command -v uv &> /dev/null; then
+    echo "ERROR: uv installation failed or not in PATH"
+    echo "Please restart your shell and run the script again, or manually add uv to PATH:"
+    echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+    exit 1
 fi
 
 # Setup database
