@@ -93,7 +93,7 @@ Both features share:
      ├────────────┤
      │ • GPS      │ → Sends coordinates to Pi (Signal Mapper)
      │ • Cellular │ → Internet access
-     │ • Browser  │ → Web interface at http://meshmap.local
+     │ • Browser  │ → Web interface at https://<hostname>.local:8443
      └────────────┘
 ```
 
@@ -102,9 +102,10 @@ Both features share:
 - **Phone creates WiFi hotspot** (iOS Personal Hotspot or Android Hotspot)
 - **Pi connects TO phone's WiFi hotspot** (not creating its own)
 - Phone maintains cellular internet connection
-- Pi accessible via mDNS at `http://meshmap.local`
+- Pi accessible via mDNS at `https://<hostname>.local:8443` (HTTPS required for GPS)
 - Phone browser accesses Django app on same WiFi network
-- Phone sends GPS coordinates to Pi via WebSocket (Signal Mapper feature)
+- Phone sends GPS coordinates to Pi via secure WebSocket (Signal Mapper feature)
+- Self-signed SSL certificate generated during installation
 
 ### Component Roles
 
@@ -115,7 +116,7 @@ Both features share:
 - **WiFi Hotspot**: Creates network for Pi to connect to
 
 #### Raspberry Pi (Backpack Unit)
-- **Web Server**: Runs Django application accessible at `http://meshmap.local`
+- **Web Server**: Runs Django/Daphne application with HTTPS at `https://<hostname>.local:8443`
 - **Radio Interface**: Reads telemetry and signal data from USB-connected MeshCore radio via serial
 - **Data Processor**: Combines GPS stream from phone with radio signal data (Signal Mapper)
 - **Data Logger**: Continuously collects repeater telemetry (Repeater Monitor)
@@ -283,19 +284,22 @@ Both features share:
 
 ## Network Protocols
 
-### HTTP/HTTPS
-- Web interface: `http://meshmap.local/`
-- Signal Mapper: `http://meshmap.local/mapper/` or `http://meshmap.local/mapper/?node=<id>`
-- Repeater Monitor: `http://meshmap.local/monitor/` (planned)
-- REST API: `http://meshmap.local/api/v1/`
+### HTTPS (Required for GPS/Positioning)
+- Web interface: `https://<hostname>.local:8443/`
+- Signal Mapper: `https://<hostname>.local:8443/mapper/` or `https://<hostname>.local:8443/mapper/?node=<id>`
+- Repeater Monitor: `https://<hostname>.local:8443/monitor/` (planned)
+- REST API: `https://<hostname>.local:8443/api/v1/`
   - Nodes: `GET /api/v1/nodes/?role=0&is_active=true`
   - Measurements: `GET/POST /api/v1/measurements/`
-- Django admin: `http://meshmap.local/admin/`
+- Django admin: `https://<hostname>.local:8443/admin/`
 
-### WebSocket
-- Signal/GPS stream: `ws://meshmap.local/ws/signal/`
+**Note:** HTTPS is required because browsers only allow Geolocation API access over secure connections. The installation script generates a self-signed SSL certificate. Users must accept the browser security warning on first visit.
+
+### Secure WebSocket
+- Signal/GPS stream: `wss://<hostname>.local:8443/ws/signal/`
 - Real-time measurement updates
 - Bidirectional communication (GPS → Pi, Signal → Phone)
+- Uses same SSL certificate as HTTPS server
 
 ### Serial (USB)
 - Device: `/dev/ttyACM0` (or `/dev/ttyUSB0`)
@@ -303,9 +307,10 @@ Both features share:
 - Protocol: MeshCore binary protocol
 
 ### mDNS
-- Hostname: `meshmap.local`
-- Service: `_http._tcp` on port 8000 (or 80)
+- Hostname: `<hostname>.local` (where hostname is the Pi's configured hostname)
+- Service: `_https._tcp` on port 8443
 - Allows phone to discover Pi without knowing IP address
+- Automatically configured by Avahi daemon (installed during setup)
 
 ## Database Schema
 
@@ -384,20 +389,31 @@ meshcore-analytics/
 - 16GB+ SD card recommended
 
 ### Network Setup
-1. Configure Pi WiFi to connect to phone's hotspot (store credentials in `/etc/wpa_supplicant/wpa_supplicant.conf`)
-2. Install Avahi and configure hostname: `meshmap.local`
-3. Start Django server on boot via systemd
-4. Start background telemetry service via systemd
+1. **WiFi Configuration**: During installation, script prompts for phone hotspot credentials
+   - Credentials stored in `/etc/wpa_supplicant/wpa_supplicant.conf`
+   - Pi auto-connects to phone hotspot on boot
+   - Falls back to any other known networks if hotspot unavailable
+2. **mDNS Setup**: Avahi daemon installed and enabled
+   - Pi accessible at `https://<hostname>.local:8443`
+   - Hostname determined from Pi's system hostname (no configuration needed)
+3. **SSL Certificates**: Self-signed certificate generated for HTTPS
+   - Required for browser Geolocation API access
+   - Valid for hostname.local, hostname, localhost, and 127.0.0.1
+4. **Services**: Optional systemd services for production deployment
+   - `meshcore-web.service` - Django/Daphne server
+   - `meshcore-telemetry.service` - Background repeater telemetry collection
 
 ### Environment Variables
 ```bash
-DJANGO_SETTINGS_MODULE=max.settings
-DATABASE_URL=postgis://postgres:password@localhost/meshcore_analytics
-ALLOWED_HOSTS=meshmap.local,*.local,192.168.*.*
+DJANGO_SETTINGS_MODULE=metro.settings
+DATABASE_URL=postgis://postgres:password@localhost/metrodb
+ALLOWED_HOSTS=*
 DEBUG=False
 SECRET_KEY=<secure-random-key>
 SERIAL_PORT=/dev/ttyACM0
 ```
+
+**Note:** `ALLOWED_HOSTS=*` allows any hostname, making the Pi accessible regardless of hostname configuration.
 
 ### Systemd Services
 - `meshcore-web.service` - Django/Daphne server (both features)

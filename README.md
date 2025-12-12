@@ -21,7 +21,7 @@ For production deployment on a Raspberry Pi:
 git clone https://github.com/jsayles/meshcore-metro.git
 cd meshcore-metro
 
-# Run the installation script
+# Run the installation script (will prompt for phone hotspot WiFi credentials)
 bin/pi_install.sh
 
 # After installation, source ~/.bashrc to update PATH
@@ -34,7 +34,15 @@ uv run python manage.py load_radio_data
 bin/start_server.sh
 ```
 
-Visit: https://metro.local:8443/ (accept the self-signed certificate warning)
+The start script will display a QR code - scan it with your phone to access the app!
+
+Visit: `https://<hostname>.local:8443/` (accept the self-signed certificate warning)
+
+**Field Setup:**
+1. Turn on your phone's WiFi hotspot
+2. Pi will auto-connect (credentials configured during install)
+3. Run `bin/start_server.sh` on the Pi
+4. Scan the QR code or visit `https://<hostname>.local:8443/` on your phone
 
 ### Development Setup (Mac/Linux)
 

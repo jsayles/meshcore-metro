@@ -30,7 +30,8 @@ sudo apt install -y \
     python3-dev \
     libpq-dev \
     gdal-bin \
-    qrencode
+    qrencode \
+    avahi-daemon
 
 # Install uv if not present
 if ! command -v uv &> /dev/null; then
@@ -62,6 +63,88 @@ if ! command -v uv &> /dev/null; then
     echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
     exit 1
 fi
+
+# Configure WiFi for phone hotspot (additive - doesn't remove existing networks)
+echo ""
+echo "=> Configuring WiFi connection to phone hotspot..."
+echo ""
+echo "For field operations, the Pi needs to connect to your phone's WiFi hotspot."
+echo "This will ADD a new WiFi connection without removing any existing networks."
+echo ""
+
+# Scan for available WiFi networks
+echo "Scanning for available WiFi networks..."
+sudo nmcli dev wifi rescan 2>/dev/null || true
+sleep 2
+
+# Get list of SSIDs (excluding the header and empty lines)
+mapfile -t WIFI_NETWORKS < <(sudo nmcli -t -f SSID dev wifi list | grep -v '^$' | sort -u)
+
+if [ ${#WIFI_NETWORKS[@]} -gt 0 ]; then
+    echo ""
+    echo "Available WiFi networks:"
+    echo "  0) Skip WiFi configuration"
+    echo "  1) Enter SSID manually"
+    for i in "${!WIFI_NETWORKS[@]}"; do
+        echo "  $((i+2))) ${WIFI_NETWORKS[$i]}"
+    done
+    echo ""
+    read -p "Select your phone's hotspot (0-$((${#WIFI_NETWORKS[@]}+1))): " WIFI_CHOICE
+
+    if [ "$WIFI_CHOICE" = "0" ]; then
+        echo "   Skipping WiFi configuration"
+        HOTSPOT_SSID=""
+    elif [ "$WIFI_CHOICE" = "1" ]; then
+        read -p "Enter your phone's hotspot SSID: " HOTSPOT_SSID
+    elif [ "$WIFI_CHOICE" -ge 2 ] && [ "$WIFI_CHOICE" -le $((${#WIFI_NETWORKS[@]}+1)) ]; then
+        HOTSPOT_SSID="${WIFI_NETWORKS[$((WIFI_CHOICE-2))]}"
+        echo "Selected: $HOTSPOT_SSID"
+    else
+        echo "   Invalid selection, skipping WiFi configuration"
+        HOTSPOT_SSID=""
+    fi
+else
+    echo "   No WiFi networks found. You can configure manually later."
+    read -p "Enter your phone's hotspot SSID [or press Enter to skip]: " HOTSPOT_SSID
+fi
+
+if [ -n "$HOTSPOT_SSID" ]; then
+    read -sp "Enter password for '$HOTSPOT_SSID': " HOTSPOT_PASSWORD
+    echo ""
+    echo ""
+
+    if [ -n "$HOTSPOT_PASSWORD" ]; then
+        echo "=> Adding WiFi connection profile..."
+
+        # Use nmcli to add connection (Raspberry Pi OS Bookworm uses NetworkManager)
+        # This is additive - it doesn't remove or modify existing connections
+        if sudo nmcli connection add \
+            con-name "phone-hotspot" \
+            ifname wlan0 \
+            type wifi \
+            ssid "$HOTSPOT_SSID" \
+            wifi-sec.key-mgmt wpa-psk \
+            wifi-sec.psk "$HOTSPOT_PASSWORD" \
+            autoconnect yes \
+            autoconnect-priority 10; then
+            echo "   WiFi connection 'phone-hotspot' added successfully"
+            echo "   Pi will auto-connect to '$HOTSPOT_SSID' when available"
+            echo "   Your existing WiFi connections are still configured"
+        else
+            echo "   ERROR: Failed to add WiFi connection"
+            echo "   You may need to configure WiFi manually using:"
+            echo "   sudo nmcli device wifi connect \"$HOTSPOT_SSID\" password \"your-password\""
+        fi
+    else
+        echo "   Skipping - no password provided"
+    fi
+fi
+
+# Enable Avahi for mDNS
+echo "=> Enabling Avahi (mDNS) for hostname discovery..."
+sudo systemctl enable avahi-daemon 2>/dev/null || true
+sudo systemctl start avahi-daemon 2>/dev/null || true
+echo "   Pi will be accessible at: https://$(hostname).local:8443"
 
 # Setup database (run from /tmp to avoid directory permission warnings)
 echo "=> Setting up PostgreSQL database..."
