@@ -34,7 +34,11 @@ sudo apt install -y \
 if ! command -v uv &> /dev/null; then
     echo "=> Installing uv (Python package manager)..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    export PATH="$HOME/.cargo/bin:$PATH"
+    # Add uv to PATH for this session
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+else
+    # Ensure uv is in PATH
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 fi
 
 # Setup database
@@ -47,23 +51,25 @@ sudo -u postgres psql metrodb -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 DB_PASSWORD=$(openssl rand -base64 12)
 sudo -u postgres psql -c "ALTER USER postgres PASSWORD '$DB_PASSWORD';"
 
+# Install Python dependencies first
+echo "=> Installing Python dependencies..."
+uv sync
+
 # Create .env file
 echo "=> Creating .env configuration..."
+SECRET_KEY=$(uv run python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
 cat > .env << EOF
 # Database
 DATABASE_URL=postgresql://postgres:$DB_PASSWORD@localhost:5432/metrodb
 
 # Django
-SECRET_KEY=$(python3 -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
+SECRET_KEY=$SECRET_KEY
 DEBUG=False
 ALLOWED_HOSTS=*
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
 EOF
-
-echo "=> Installing Python dependencies..."
-uv sync
 
 echo "=> Running database migrations..."
 uv run python manage.py migrate
