@@ -17,7 +17,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full architecture details.
 - Python 3.14+
 - PostgreSQL with PostGIS extension
 - Redis server (for WebSocket channels)
-- MeshCore radio (optional - uses mock data if not connected)
+- MeshCore radio connected via USB
 
 ### Setup
 
@@ -26,8 +26,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full architecture details.
 uv sync
 
 # 2. Create database
-createdb meshcore_analytics
-psql meshcore_analytics -c "CREATE EXTENSION postgis;"
+createdb maxdb
+psql maxdb -c "CREATE EXTENSION postgis;"
 
 # 3. Create .env file
 cp .env.example .env
@@ -41,51 +41,22 @@ Edit `.env` and configure:
 
 # Update .env with your port:
 SERIAL_PORT=/dev/tty.usbmodem21401  # Your actual device
-
-# Set to False to use real radio, True for mock data
-USE_MOCK_RADIO=False
 ```
 
 ```bash
 # 4. Run migrations
-uv run python manage.py migrate
+uv run manage.py migrate
 
-# 5. Create test node (optional)
-uv run python manage.py shell
-```
-
-In shell:
-```python
-from max.models import Node
-from django.contrib.gis.geos import Point
-
-Node.objects.create(
-    name="Test Repeater 1",
-    mesh_identity="TEST_001",
-    role=0,  # REPEATER
-    location=Point(-122.4194, 37.7749, srid=4326),
-    is_active=True
-)
-```
-
-### Running Signal Mapper
-
-**Terminal 1 - Redis:**
-```bash
-redis-server
-```
-
-**Terminal 2 - Django with Channels:**
-```bash
+# 5. Run django
 uv run daphne -b 0.0.0.0 -p 8000 max.asgi:application
 ```
 
 **Browser:**
-- Signal Mapper: http://localhost:8000/
+- Mesh Home: http://localhost:8000/
 - Admin: http://localhost:8000/admin/
 - API: http://localhost:8000/api/v1/
 
-## Signal Mapper Workflow
+## Workflow
 
 1. Open http://localhost:8000/ or http://localhost:8000/mapper/?node=<id> in browser
 2. **Setup Steps** (3-step checklist):
@@ -105,12 +76,7 @@ uv run daphne -b 0.0.0.0 -p 8000 max.asgi:application
 - Mobile-friendly interface with viewport optimization
 - Automatic GPS streaming to Pi via WebSocket
 - Map centered on Vancouver, BC by default
-
-**Mode Selection:**
-- **Mock Mode** (`USE_MOCK_RADIO=True`): Uses random signal values for testing
-- **Real Mode** (`USE_MOCK_RADIO=False`): Reads actual signal data from USB-connected MeshCore radio
-
-The system automatically falls back to mock mode if the radio isn't connected or libraries are missing.
+- Reads signal data from USB-connected MeshCore radio
 
 ## Development Commands
 
@@ -147,7 +113,7 @@ uv sync
 ├── max/                    # Main Django app
 │   ├── models.py           # Node, SignalMeasurement, RepeaterStats
 │   ├── consumers.py        # WebSocket consumer (GPS/signal)
-│   ├── radio_interface.py  # USB radio interface (mock mode)
+│   ├── radio_interface.py  # USB radio interface
 │   ├── static/max/js/
 │   │   ├── pi-connection.js       # WebSocket client
 │   │   ├── measurement-collector.js
@@ -191,8 +157,7 @@ uv sync
 
 3. **Update .env:**
    ```bash
-   SERIAL_PORT=/dev/tty.usbmodem21401  # Your device
-   USE_MOCK_RADIO=False
+   SERIAL_PORT=/dev/tty.usbmodem21401
    ```
 
    Or automatically update:
@@ -205,7 +170,7 @@ uv sync
    uv run python manage.py find_usb_radio --test
    ```
 
-5. **Restart server** - it will now read real RSSI/SNR from the radio!
+5. **Restart server**
 
 **Note:** The `meshcore` library integration uses `radio.getStats()` to read signal data. Adjust [max/radio_interface.py:109](max/radio_interface.py:109) if your MeshCore library has a different API.
 

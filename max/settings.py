@@ -183,4 +183,3 @@ REST_FRAMEWORK = {
 MESHCORE_SERIAL_PORT = os.environ.get("SERIAL_PORT", "/dev/ttyACM0")
 MESHCORE_BAUD_RATE = int(os.environ.get("SERIAL_BAUD_RATE", "115200"))
 MESHCORE_POLL_INTERVAL = int(os.environ.get("MESHCORE_POLL_INTERVAL", "5"))  # seconds
-MESHCORE_USE_MOCK = os.environ.get("USE_MOCK_RADIO", "False") == "True"

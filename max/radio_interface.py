@@ -5,64 +5,32 @@ Used by Signal Mapper WebSocket consumer for on-demand signal readings.
 """
 
 import logging
+import serial
+import meshcore
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
-
-# Try to import serial and meshcore libraries
-try:
-    import serial
-
-    SERIAL_AVAILABLE = True
-except ImportError:
-    SERIAL_AVAILABLE = False
-    logger.warning("pyserial not available, using mock mode")
-
-try:
-    import meshcore
-
-    MESHCORE_AVAILABLE = True
-except ImportError:
-    MESHCORE_AVAILABLE = False
-    logger.warning("meshcore library not available, using mock mode")
 
 
 class RadioInterface:
     """
     Simple interface to read current signal data from MeshCore radio.
-
-    Supports both real radio (via meshcore library) and mock mode for testing.
     """
 
-    def __init__(self, port=None, use_mock=None):
+    def __init__(self, port=None):
         """
         Initialize radio interface.
 
         Args:
             port: Serial port path (default from settings)
-            use_mock: Use mock data instead of real radio (default from settings)
         """
         self.port = port or settings.MESHCORE_SERIAL_PORT
-
-        # Use mock if explicitly requested, or if libraries unavailable, or if setting says so
-        if use_mock is None:
-            self.use_mock = settings.MESHCORE_USE_MOCK or not (SERIAL_AVAILABLE and MESHCORE_AVAILABLE)
-        else:
-            self.use_mock = use_mock
-
         self.serial = None
         self.radio = None
-
-        if self.use_mock:
-            logger.info("Radio interface in MOCK mode")
-        else:
-            logger.info(f"Radio interface on {self.port} (REAL mode)")
+        logger.info(f"Radio interface on {self.port}")
 
     def connect(self):
         """Open serial connection to radio."""
-        if self.use_mock:
-            return True
-
         try:
             self.serial = serial.Serial(self.port, settings.MESHCORE_BAUD_RATE, timeout=1)
 
@@ -93,9 +61,6 @@ class RadioInterface:
         Returns:
             dict with rssi and snr, or None if unavailable
         """
-        if self.use_mock:
-            return self._get_mock_signal()
-
         if not self.radio:
             logger.error("Radio not connected")
             return None
@@ -113,12 +78,6 @@ class RadioInterface:
         except Exception as e:
             logger.error(f"Failed to read signal from radio: {e}")
             return None
-
-    def _get_mock_signal(self):
-        """Generate mock signal data for testing."""
-        import random
-
-        return {"rssi": random.randint(-100, -40), "snr": random.randint(-5, 15)}
 
     def __enter__(self):
         """Context manager support."""

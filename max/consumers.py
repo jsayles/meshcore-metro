@@ -127,9 +127,7 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
                 await self.send_error("No GPS data available")
                 return
 
-            # TODO: Read current signal data from radio
-            # For now, use mock data or last known values
-            # This will be replaced with actual radio reading
+            # Read current signal data from radio
             signal_data = await self.get_signal_from_radio(target_node_id)
 
             if not signal_data:
@@ -174,7 +172,7 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
         from max.radio_interface import get_radio_interface
 
         try:
-            # Get radio interface (uses mock mode for MVP)
+            # Get radio interface
             radio = get_radio_interface()
             signal_data = await sync_to_async(radio.get_current_signal)(target_node_id)
             return signal_data

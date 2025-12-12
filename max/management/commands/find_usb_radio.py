@@ -97,8 +97,7 @@ class Command(BaseCommand):
             self.stdout.write("\n" + "=" * 60)
             self.stdout.write(self.style.SUCCESS("📝 To use this radio:\n"))
             self.stdout.write(f"1. Update your .env file:")
-            self.stdout.write(f"   SERIAL_PORT={primary.device}")
-            self.stdout.write(f"   USE_MOCK_RADIO=False\n")
+            self.stdout.write(f"   SERIAL_PORT={primary.device}\n")
             self.stdout.write(f"2. Restart your server:")
             self.stdout.write(f"   uv run daphne -b 0.0.0.0 -p 8000 max.asgi:application")
 
@@ -189,12 +188,9 @@ class Command(BaseCommand):
                     if line.startswith("SERIAL_PORT="):
                         lines[i] = f"SERIAL_PORT={port}\n"
                         updated = True
-                    elif line.startswith("USE_MOCK_RADIO="):
-                        lines[i] = "USE_MOCK_RADIO=False\n"
 
                 if not updated:
                     lines.append(f"\nSERIAL_PORT={port}\n")
-                    lines.append("USE_MOCK_RADIO=False\n")
 
                 with open(env_path, "w") as f:
                     f.writelines(lines)

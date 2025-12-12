@@ -19,7 +19,5 @@ def signal_mapper(request):
     if not request.session.session_key:
         request.session.create()
 
-    context = {
-        'session_id': request.session.session_key
-    }
+    context = {"session_id": request.session.session_key}
     return render(request, "max/signal_mapper.html", context)
