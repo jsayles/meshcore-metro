@@ -72,14 +72,22 @@ class NeighbourInfoAdmin(admin.ModelAdmin):
 
 @admin.register(SignalMeasurement)
 class SignalMeasurementAdmin(GISModelAdmin):
-    list_display = ["target_node", "timestamp", "rssi", "snr", "session_id", "gps_accuracy"]
-    list_filter = ["timestamp", "target_node", "session_id"]
+    list_display = [
+        "target_node",
+        "timestamp",
+        "snr_to_target",
+        "snr_from_target",
+        "trace_success",
+        "session_id",
+        "gps_accuracy",
+    ]
+    list_filter = ["timestamp", "target_node", "trace_success", "session_id"]
     search_fields = ["target_node__name", "target_node__mesh_identity"]
     readonly_fields = ["timestamp"]
     date_hierarchy = "timestamp"
     fieldsets = [
         ("Target", {"fields": ["target_node", "timestamp"]}),
         ("Location", {"fields": ["location", "altitude", "gps_accuracy"]}),
-        ("Signal Data", {"fields": ["rssi", "snr"]}),
+        ("Signal Data", {"fields": ["snr_to_target", "snr_from_target", "trace_success"]}),
         ("Session", {"fields": ["session_id", "collector_user"]}),
     ]

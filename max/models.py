@@ -165,8 +165,9 @@ class SignalMeasurement(models.Model):
 
     # Target node and signal data
     target_node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="signal_measurements")
-    rssi = models.SmallIntegerField(help_text="Received Signal Strength Indicator in dBm")
-    snr = models.SmallIntegerField(help_text="Signal-to-Noise Ratio in dB")
+    snr_to_target = models.FloatField(default=0.0, help_text="SNR at target node (our signal reaching the repeater) in dB")
+    snr_from_target = models.FloatField(default=0.0, help_text="SNR at our device (repeater's signal reaching us) in dB")
+    trace_success = models.BooleanField(default=False, help_text="Whether the trace command succeeded")
 
     # Collection metadata
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -192,4 +193,4 @@ class SignalMeasurement(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.target_node} @ {self.location} - RSSI: {self.rssi}dBm"
+        return f"{self.target_node} @ {self.location} - SNR: {self.snr_to_target}/{self.snr_from_target}dB"

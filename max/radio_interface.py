@@ -1,12 +1,12 @@
 """
-Simple interface for reading signal data from MeshCore radio.
+Simple interface for reading signal data from MeshCore radio using trace commands.
 
 Used by Signal Mapper WebSocket consumer for on-demand signal readings.
 """
 
+import asyncio
 import logging
-import serial
-import meshcore
+from meshcore import MeshCore, SerialConnection, EventType
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class RadioInterface:
     """
-    Simple interface to read current signal data from MeshCore radio.
+    Interface to read signal data from MeshCore radio using trace commands.
     """
 
     def __init__(self, port=None):
@@ -25,75 +25,111 @@ class RadioInterface:
             port: Serial port path (default from settings)
         """
         self.port = port or settings.MESHCORE_SERIAL_PORT
-        self.serial = None
-        self.radio = None
-        logger.info(f"Radio interface on {self.port}")
+        self.mc = None
+        self.serial_cx = None
+        logger.info(f"Radio interface initialized for {self.port}")
 
-    def connect(self):
-        """Open serial connection to radio."""
+    async def connect(self):
+        """Open async serial connection to radio."""
         try:
-            self.serial = serial.Serial(self.port, settings.MESHCORE_BAUD_RATE, timeout=1)
-
-            # Initialize MeshCore radio connection
-            self.radio = meshcore.Radio(self.serial)
+            self.serial_cx = SerialConnection(port=self.port, baudrate=settings.MESHCORE_BAUD_RATE)
+            self.mc = MeshCore(cx=self.serial_cx)
+            await self.mc.connect()
             logger.info(f"Connected to MeshCore radio on {self.port}")
             return True
         except Exception as e:
             logger.error(f"Failed to connect to radio: {e}")
             return False
 
-    def disconnect(self):
+    async def disconnect(self):
         """Close serial connection."""
-        if self.radio:
-            self.radio = None
+        if self.mc:
+            await self.mc.disconnect()
+            self.mc = None
+        self.serial_cx = None
 
-        if self.serial:
-            self.serial.close()
-            self.serial = None
-
-    def get_current_signal(self, target_node_id=None):
+    async def get_current_signal(self, target_node):
         """
-        Get current signal strength from radio.
+        Get current signal strength by sending a trace to the target node.
 
         Args:
-            target_node_id: ID of target node (optional, for filtering stats)
+            target_node: Node model instance with mesh_identity
 
         Returns:
-            dict with rssi and snr, or None if unavailable
+            dict with snr and optional rssi, or None if unavailable
         """
-        if not self.radio:
+        if not self.mc:
             logger.error("Radio not connected")
             return None
 
         try:
-            # Get stats from MeshCore radio
-            # The meshcore library should provide getStats() or similar
-            # Adjust based on actual API
-            stats = self.radio.getStats()
+            # Extract short hash (first 2 chars) from mesh_identity for trace path
+            # mesh_identity is like "46381bfb67f7..." we need "46"
+            node_hash = target_node.mesh_identity[:2]
+            logger.info(f"Sending trace to node {target_node.name} (hash: {node_hash})")
 
-            # Extract RSSI and SNR from stats
-            # Adjust field names based on actual meshcore library response
-            return {"rssi": stats.get("last_rssi") or stats.get("rssi"), "snr": stats.get("last_snr") or stats.get("snr")}
+            # Subscribe to trace data events
+            trace_received = asyncio.Event()
+            trace_data = {}
 
+            async def on_trace_data(event):
+                logger.debug(f"Trace data received: {event.payload}")
+                trace_data["payload"] = event.payload
+                trace_received.set()
+
+            subscription = self.mc.subscribe(EventType.TRACE_DATA, on_trace_data)
+
+            try:
+                # Send trace command
+                await self.mc.commands.send_trace(path=node_hash)
+
+                # Wait for trace response (with timeout)
+                await asyncio.wait_for(trace_received.wait(), timeout=10.0)
+
+                # Extract signal data from trace response
+                payload = trace_data.get("payload", {})
+                path = payload.get("path", [])
+
+                if len(path) >= 2:
+                    # path[0] = SNR at target repeater (our signal reaching it)
+                    # path[1] = SNR at our device (repeater's signal reaching us)
+                    snr_to_target = path[0].get("snr")
+                    snr_from_target = path[1].get("snr")
+
+                    return {
+                        "snr_to_target": snr_to_target,
+                        "snr_from_target": snr_from_target,
+                    }
+                else:
+                    logger.warning(f"Insufficient path data in trace response: {len(path)} nodes")
+                    return None
+
+            finally:
+                subscription.unsubscribe()
+
+        except asyncio.TimeoutError:
+            logger.error("Timeout waiting for trace response")
+            return None
         except Exception as e:
             logger.error(f"Failed to read signal from radio: {e}")
             return None
 
-    def __enter__(self):
-        """Context manager support."""
-        self.connect()
+    async def __aenter__(self):
+        """Async context manager support."""
+        await self.connect()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager support."""
-        self.disconnect()
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager support."""
+        await self.disconnect()
 
 
 # Global radio instance for WebSocket consumer to use
 _radio_instance = None
+_radio_lock = asyncio.Lock()
 
 
-def get_radio_interface():
+async def get_radio_interface():
     """
     Get or create global radio interface instance.
 
@@ -102,8 +138,9 @@ def get_radio_interface():
     """
     global _radio_instance
 
-    if _radio_instance is None:
-        _radio_instance = RadioInterface()
-        _radio_instance.connect()
+    async with _radio_lock:
+        if _radio_instance is None:
+            _radio_instance = RadioInterface()
+            await _radio_instance.connect()
 
-    return _radio_instance
+        return _radio_instance

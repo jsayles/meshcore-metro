@@ -130,13 +130,24 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
             # Read current signal data from radio
             signal_data = await self.get_signal_from_radio(target_node_id)
 
+            # Always save measurement, even if trace failed
             if not signal_data:
-                await self.send_error("No signal data available from radio")
-                return
+                logger.warning("Trace failed, saving measurement with default values")
+                signal_data = {
+                    "snr_to_target": 0.0,
+                    "snr_from_target": 0.0,
+                }
+                trace_success = False
+            else:
+                trace_success = True
 
             # Save measurement to database
             measurement_id = await self.save_measurement(
-                target_node_id=target_node_id, session_id=session_id, gps_data=self.current_gps, signal_data=signal_data
+                target_node_id=target_node_id,
+                session_id=session_id,
+                gps_data=self.current_gps,
+                signal_data=signal_data,
+                trace_success=trace_success,
             )
 
             # Send confirmation to phone
@@ -145,8 +156,8 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
                     {
                         "type": "measurement_saved",
                         "measurement_id": measurement_id,
-                        "rssi": signal_data["rssi"],
-                        "snr": signal_data["snr"],
+                        "snr_to_target": signal_data["snr_to_target"],
+                        "snr_from_target": signal_data["snr_from_target"],
                         "latitude": self.current_gps["latitude"],
                         "longitude": self.current_gps["longitude"],
                     }
@@ -161,7 +172,7 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
 
     async def get_signal_from_radio(self, target_node_id):
         """
-        Read current signal data from MeshCore radio.
+        Read current signal data from MeshCore radio using trace command.
 
         Args:
             target_node_id: ID of target node to get signal for
@@ -172,16 +183,21 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
         from max.radio_interface import get_radio_interface
 
         try:
-            # Get radio interface
-            radio = get_radio_interface()
-            signal_data = await sync_to_async(radio.get_current_signal)(target_node_id)
+            # Get target node from database
+            target_node = await database_sync_to_async(Node.objects.get)(id=target_node_id)
+
+            # Get radio interface (already async)
+            radio = await get_radio_interface()
+
+            # Get signal data via trace command
+            signal_data = await radio.get_current_signal(target_node)
             return signal_data
         except Exception as e:
             logger.error(f"Failed to read signal from radio: {e}")
             return None
 
     @database_sync_to_async
-    def save_measurement(self, target_node_id, session_id, gps_data, signal_data):
+    def save_measurement(self, target_node_id, session_id, gps_data, signal_data, trace_success):
         """
         Save measurement to database.
 
@@ -189,7 +205,8 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
             target_node_id: ID of target node
             session_id: Session UUID
             gps_data: GPS coordinates and metadata
-            signal_data: RSSI and SNR values
+            signal_data: SNR values
+            trace_success: Whether the trace succeeded
 
         Returns:
             Measurement ID
@@ -207,8 +224,9 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
                 altitude=gps_data.get("altitude"),
                 gps_accuracy=gps_data.get("accuracy"),
                 target_node=target_node,
-                rssi=signal_data["rssi"],
-                snr=signal_data["snr"],
+                snr_to_target=signal_data["snr_to_target"],
+                snr_from_target=signal_data["snr_from_target"],
+                trace_success=trace_success,
                 session_id=session_id,
                 collector_user=None,  # Anonymous for now
             )
