@@ -19,41 +19,35 @@
 
         <!-- Progress Checklist -->
         <div class="checklist">
-            <!-- Step 1: Repeater -->
-            <div class="step" id="step-repeater" data-step="1">
+            <!-- Initialization Box -->
+            <div class="step init-box" id="step-init" data-step="init">
                 <div class="step-header">
-                    <span class="step-number">1</span>
-                    <span class="step-title">Repeater</span>
-                    <span class="step-status" id="status-repeater"></span>
+                    <span class="step-title">Initialization</span>
                 </div>
-                <div class="step-content" id="content-repeater">
-                    <select id="repeater-select" class="select">
-                        <option value="">-- Select Repeater --</option>
-                    </select>
-                </div>
-                <div class="step-content" id="content-repeater-selected" style="display: none;">
-                    <span id="selected-repeater-name"></span>
-                </div>
-            </div>
+                <div class="init-content">
+                    <!-- Step 1: Repeater -->
+                    <div class="init-item">
+                        <span class="init-label">Repeater:</span>
+                        <div class="init-value">
+                            <select id="repeater-select" class="select" style="display: inline-block;">
+                                <option value="">-- Select --</option>
+                            </select>
+                            <span id="status-repeater" class="init-status"></span>
+                        </div>
+                    </div>
 
-            <!-- Step 2: Location Tracking -->
-            <div class="step" id="step-location" data-step="2">
-                <div class="step-header">
-                    <span class="step-number">2</span>
-                    <span class="step-title">Location Tracking</span>
-                    <span class="step-status" id="status-location">Waiting...</span>
-                </div>
-            </div>
+                    <!-- Step 2: Location Tracking -->
+                    <div class="init-item">
+                        <span class="init-label">Location:</span>
+                        <span id="status-location" class="init-status">Waiting...</span>
+                    </div>
 
-            <!-- Step 3: Companion Radio -->
-            <div class="step" id="step-radio" data-step="3">
-                <div class="step-header">
-                    <span class="step-number">3</span>
-                    <span class="step-title">Companion Radio</span>
-                    <span class="step-status" id="status-radio">Waiting...</span>
-                </div>
-                <div class="step-content" id="content-radio">
-                    <button id="btn-connect" class="btn btn-primary">Connect</button>
+                    <!-- Step 3: Companion Radio -->
+                    <div class="init-item">
+                        <span class="init-label">Radio:</span>
+                        <span id="status-radio" class="init-status">Waiting...</span>
+                        <button id="btn-connect" class="btn btn-primary btn-sm" style="display: none; margin-left: 8px;">Connect</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -95,7 +89,7 @@
 
                 <div id="continuous-options" style="display: none;">
                     <label for="interval">Interval (seconds):</label>
-                    <input type="number" id="interval" min="1" max="60" value="5" class="input">
+                    <input type="number" id="interval" min="1" max="300" value="30" class="input">
                 </div>
 
                 <div class="button-group">

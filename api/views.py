@@ -24,10 +24,10 @@ class MappingSessionViewSet(viewsets.ModelViewSet):
     Supports creating, updating, and retrieving mapping sessions.
     """
 
-    queryset = MappingSession.objects.all().select_related("user", "target_node")
+    queryset = MappingSession.objects.all().select_related("target_node")
     serializer_class = MappingSessionSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ["user", "target_node", "end_time"]
+    filterset_fields = ["target_node", "end_time"]
     ordering_fields = ["start_time"]
     ordering = ["-start_time"]
 

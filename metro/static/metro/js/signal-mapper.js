@@ -80,70 +80,25 @@ class SignalMapper {
         // Step 1: Repeater selection
         if (this.targetNodeId) {
             // Show selected repeater name in the status
-            // ID is at feature.id, not feature.properties.id
             const repeater = this.repeaters.find(r => Number(r.id) === Number(this.targetNodeId));
-
             const repeaterName = repeater ? (repeater.properties.name || repeater.properties.mesh_identity) : 'Selected';
 
-            this.completeStep(1, repeaterName);
+            document.getElementById('status-repeater').textContent = repeaterName;
+            document.getElementById('status-repeater').style.color = 'var(--success-color)';
+            document.getElementById('repeater-select').style.display = 'none';
             this.currentStep = 2;
-
-            // Hide the dropdown content completely
-            document.getElementById('content-repeater').style.display = 'none';
-            document.getElementById('content-repeater-selected').style.display = 'none';
         } else {
-            this.setActiveStep(1);
+            this.currentStep = 1;
         }
 
         this.updateStepDisplay();
     }
 
     /**
-     * Set a step as active
-     */
-    setActiveStep(stepNumber) {
-        document.querySelectorAll('.step').forEach(step => {
-            step.classList.remove('active');
-        });
-
-        const stepElement = document.querySelector(`[data-step="${stepNumber}"]`);
-        if (stepElement) {
-            stepElement.classList.add('active');
-        }
-
-        this.currentStep = stepNumber;
-    }
-
-    /**
-     * Mark a step as completed
-     */
-    completeStep(stepNumber, statusText) {
-        const stepElement = document.querySelector(`[data-step="${stepNumber}"]`);
-        const statusElement = document.getElementById(`status-${this.getStepName(stepNumber)}`);
-
-        if (stepElement) {
-            stepElement.classList.add('completed');
-            stepElement.classList.remove('active');
-        }
-
-        if (statusElement) {
-            statusElement.textContent = statusText;
-        }
-    }
-
-    /**
-     * Get step name from number
-     */
-    getStepName(stepNumber) {
-        const names = ['', 'repeater', 'location', 'radio', 'collect'];
-        return names[stepNumber];
-    }
-
-    /**
-     * Update step display
+     * Update step display (simplified - no-op for new compact layout)
      */
     updateStepDisplay() {
-        this.setActiveStep(this.currentStep);
+        // No longer needed with compact initialization box
     }
 
     /**
@@ -154,7 +109,10 @@ class SignalMapper {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     this.locationShared = true;
-                    this.completeStep(2, 'Enabled');
+                    const statusElement = document.getElementById('status-location');
+                    statusElement.textContent = 'Enabled';
+                    statusElement.style.color = 'var(--success-color)';
+
                     this.map.setView(
                         [position.coords.latitude, position.coords.longitude],
                         15
@@ -162,7 +120,8 @@ class SignalMapper {
 
                     if (this.currentStep === 2) {
                         this.currentStep = 3;
-                        this.updateStepDisplay();
+                        // Show the connect button
+                        document.getElementById('btn-connect').style.display = 'inline-block';
 
                         // Auto-connect to radio now that location is granted
                         if (this.targetNodeId) {
@@ -267,17 +226,12 @@ class SignalMapper {
             // Connect via WebSocket
             await this.wsConnection.connect();
 
-            // Remove the button and hide the step content
-            document.getElementById('content-radio').style.display = 'none';
+            // Update status and hide button
+            status.textContent = 'Connected';
+            status.style.color = 'var(--success-color)';
+            btn.style.display = 'none';
+
             this.showMessage('Connected! GPS streaming started.', 'success');
-
-            // Mark step complete
-            this.completeStep(3, 'Connected');
-
-            // Remove active state from all steps since setup is complete
-            document.querySelectorAll('.step').forEach(step => {
-                step.classList.remove('active');
-            });
 
             // Show session section now that all steps are complete
             document.getElementById('session-section').style.display = 'block';
@@ -568,6 +522,11 @@ class SignalMapper {
         document.getElementById('measurement-count').textContent = data.count;
         document.getElementById('snr-to-target').textContent = data.snr_to_target || '0';
         document.getElementById('snr-from-target').textContent = data.snr_from_target || '0';
+
+        // Update trace timing if duration is provided
+        if (data.duration) {
+            this.updateTraceTimingDisplay(data.duration);
+        }
 
         // Show trace status
         if (data.snr_to_target === 0 && data.snr_from_target === 0) {

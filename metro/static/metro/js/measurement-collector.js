@@ -16,10 +16,16 @@ export class MeasurementCollector {
         this.measurementCount = 0;
         this.onMeasurement = null; // Callback for when measurement is collected
         this.pendingMeasurementResolve = null; // Promise resolve for pending measurement
+        this.measurementStartTime = null; // Track when measurement started
 
         // Listen for measurement confirmations from Pi
         this.piConnection.onMeasurementSaved = (data) => {
             this.measurementCount++;
+
+            // Calculate duration if we have a start time
+            const duration = this.measurementStartTime
+                ? ((Date.now() - this.measurementStartTime) / 1000).toFixed(1)
+                : null;
 
             if (this.onMeasurement) {
                 this.onMeasurement({
@@ -27,15 +33,19 @@ export class MeasurementCollector {
                     snr_from_target: data.snr_from_target,
                     latitude: data.latitude,
                     longitude: data.longitude,
-                    count: this.measurementCount
+                    count: this.measurementCount,
+                    duration: duration
                 });
             }
 
             // Resolve pending measurement promise
             if (this.pendingMeasurementResolve) {
-                this.pendingMeasurementResolve(data);
+                this.pendingMeasurementResolve({ ...data, duration });
                 this.pendingMeasurementResolve = null;
             }
+
+            // Clear start time
+            this.measurementStartTime = null;
         };
     }
 
@@ -61,6 +71,8 @@ export class MeasurementCollector {
      * Returns a promise that resolves when the measurement is saved.
      */
     async collectOnce() {
+        this.measurementStartTime = Date.now();
+
         return new Promise((resolve, reject) => {
             try {
                 // Store the resolve function to be called when measurement is saved
@@ -75,6 +87,7 @@ export class MeasurementCollector {
                 setTimeout(() => {
                     if (this.pendingMeasurementResolve) {
                         this.pendingMeasurementResolve = null;
+                        this.measurementStartTime = null;
                         reject(new Error('Measurement timeout'));
                     }
                 }, 15000); // 15 second timeout (longer than trace timeout)
@@ -82,6 +95,7 @@ export class MeasurementCollector {
             } catch (error) {
                 console.error('Failed to collect measurement:', error);
                 this.pendingMeasurementResolve = null;
+                this.measurementStartTime = null;
                 reject(error);
             }
         });
