@@ -29,7 +29,8 @@ sudo apt install -y \
     redis-server \
     python3-dev \
     libpq-dev \
-    gdal-bin
+    gdal-bin \
+    qrencode
 
 # Install uv if not present
 if ! command -v uv &> /dev/null; then
