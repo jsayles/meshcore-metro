@@ -1,7 +1,7 @@
 from rest_framework import viewsets, filters
 from django_filters.rest_framework import DjangoFilterBackend
-from max.models import Node, SignalMeasurement, Role
-from .serializers import NodeSerializer, SignalMeasurementSerializer
+from max.models import Node, MappingSession, Trace, Role
+from .serializers import NodeSerializer, MappingSessionSerializer, TraceSerializer
 
 
 class NodeViewSet(viewsets.ReadOnlyModelViewSet):
@@ -18,15 +18,29 @@ class NodeViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ["name", "last_seen"]
 
 
-class SignalMeasurementViewSet(viewsets.ModelViewSet):
+class MappingSessionViewSet(viewsets.ModelViewSet):
     """
-    API endpoint for signal measurements.
-    Supports creating new measurements and retrieving for heatmap display.
+    API endpoint for mapping sessions.
+    Supports creating, updating, and retrieving mapping sessions.
     """
 
-    queryset = SignalMeasurement.objects.all().select_related("target_node")
-    serializer_class = SignalMeasurementSerializer
+    queryset = MappingSession.objects.all().select_related("user", "target_node")
+    serializer_class = MappingSessionSerializer
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ["target_node", "session_id"]
-    ordering_fields = ["timestamp", "rssi", "snr"]
+    filterset_fields = ["user", "target_node", "end_time"]
+    ordering_fields = ["start_time"]
+    ordering = ["-start_time"]
+
+
+class TraceViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for trace measurements.
+    Supports creating new traces and retrieving for heatmap display.
+    """
+
+    queryset = Trace.objects.all().select_related("session__target_node")
+    serializer_class = TraceSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ["session", "session__target_node"]
+    ordering_fields = ["timestamp"]
     ordering = ["-timestamp"]

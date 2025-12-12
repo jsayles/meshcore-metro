@@ -58,6 +58,25 @@
             </div>
         </div>
 
+        <!-- Session Management Section -->
+        <div class="collection-section" id="session-section">
+            <h2>Mapping Session</h2>
+
+            <div id="session-start">
+                <button id="btn-start-session" class="btn btn-primary">Start Session</button>
+                <p class="help-text">Start a mapping session to begin collecting traces</p>
+            </div>
+
+            <div id="session-active" style="display: none;">
+                <div class="session-info">
+                    <div>Status: <span class="badge badge-success">Active</span></div>
+                    <div>Started: <span id="session-start-time">-</span></div>
+                    <div>Traces collected: <span id="measurement-count">0</span></div>
+                </div>
+                <button id="btn-end-session" class="btn btn-danger">End Session</button>
+            </div>
+        </div>
+
         <!-- Collect Measurements Section -->
         <div class="collection-section" id="collection-section">
             <h2>Collect Measurements</h2>
@@ -80,16 +99,21 @@
                 </div>
 
                 <div class="button-group">
-                    <button id="btn-collect" class="btn btn-success">Collect Now</button>
+                    <button id="btn-collect" class="btn btn-success">Send Trace</button>
                     <button id="btn-start-continuous" class="btn btn-success" style="display: none;">Start Collection</button>
                     <button id="btn-stop-continuous" class="btn btn-danger" style="display: none;">Stop Collection</button>
                 </div>
 
+                <!-- Trace Status -->
+                <div id="trace-status" style="margin-top: 10px; font-size: 0.9em;"></div>
+
                 <!-- Measurement Stats -->
                 <div class="measurement-stats">
-                    <div>Measurements: <span id="measurement-count">0</span></div>
-                    <div>Last RSSI: <span id="last-rssi">-</span> dBm</div>
-                    <div>Last SNR: <span id="last-snr">-</span> dB</div>
+                    <h3>Last Trace</h3>
+                    <div>Time: <span id="trace-time">-</span></div>
+                    <div>Duration: <span id="trace-duration">-</span></div>
+                    <div>SNR to target: <span id="snr-to-target">-</span> dB</div>
+                    <div>SNR from target: <span id="snr-from-target">-</span> dB</div>
                 </div>
             </div>
         </div>
@@ -110,7 +134,7 @@
     import { SignalMapper } from "{% static 'max/js/signal-mapper.js' %}";
 
     document.addEventListener('DOMContentLoaded', () => {
-        const app = new SignalMapper("{{ session_id }}");
+        const app = new SignalMapper();
         app.init();
     });
 </script>

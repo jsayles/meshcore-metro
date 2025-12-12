@@ -140,11 +140,52 @@ class NeighbourInfo(models.Model):
         return f"{self.neighbour} (neighbour of {self.node})"
 
 
-class SignalMeasurement(models.Model):
+class MappingSession(models.Model):
     """
-    Stores signal strength measurements collected from field testing.
+    Represents an explicit mapping session where a user walks around collecting signal data.
+    Sessions must be explicitly started and ended.
+    """
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    target_node = models.ForeignKey(Node, on_delete=models.CASCADE)
+    start_time = models.DateTimeField(auto_now_add=True, db_index=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, help_text="Description of the mapping session")
+
+    class Meta:
+        verbose_name = "Mapping Session"
+        verbose_name_plural = "Mapping Sessions"
+        ordering = ["-start_time"]
+        indexes = [
+            models.Index(fields=["user", "-start_time"]),
+            models.Index(fields=["target_node", "-start_time"]),
+        ]
+
+    def __str__(self):
+        status = "active" if self.end_time is None else "completed"
+        return f"{self.user} mapping {self.target_node} ({status}) - {self.start_time}"
+
+    @property
+    def is_active(self):
+        """Returns True if the session is still active (not ended)."""
+        return self.end_time is None
+
+    @property
+    def duration(self):
+        """Returns the duration of the session if completed, None otherwise."""
+        if self.end_time:
+            return self.end_time - self.start_time
+        return None
+
+
+class Trace(models.Model):
+    """
+    Stores individual signal trace measurements collected during a mapping session.
     Used for generating signal coverage heatmaps.
     """
+
+    # Link to mapping session
+    session = models.ForeignKey(MappingSession, on_delete=models.CASCADE)
 
     # Location (GeoDjango PointField - lon, lat order)
     location = gis_models.PointField(srid=4326, help_text="GPS coordinates (lon, lat)")
@@ -163,34 +204,26 @@ class SignalMeasurement(models.Model):
         help_text="GPS horizontal accuracy in meters (from browser)",
     )
 
-    # Target node and signal data
-    target_node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name="signal_measurements")
+    # Signal data
     snr_to_target = models.FloatField(default=0.0, help_text="SNR at target node (our signal reaching the repeater) in dB")
     snr_from_target = models.FloatField(default=0.0, help_text="SNR at our device (repeater's signal reaching us) in dB")
     trace_success = models.BooleanField(default=False, help_text="Whether the trace command succeeded")
 
     # Collection metadata
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
-    session_id = models.UUIDField(null=True, blank=True, db_index=True, help_text="Groups measurements from same session")
-
-    # Optional user tracking
-    collector_user = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="measurements",
-        help_text="User who collected this measurement",
-    )
 
     class Meta:
-        verbose_name = "Signal Measurement"
-        verbose_name_plural = "Signal Measurements"
+        verbose_name = "Trace"
+        verbose_name_plural = "Traces"
         ordering = ["-timestamp"]
         indexes = [
-            models.Index(fields=["target_node", "-timestamp"]),
-            models.Index(fields=["session_id"]),
+            models.Index(fields=["session", "-timestamp"]),
         ]
 
     def __str__(self):
-        return f"{self.target_node} @ {self.location} - SNR: {self.snr_to_target}/{self.snr_from_target}dB"
+        return f"Trace @ {self.location} - SNR: {self.snr_to_target}/{self.snr_from_target}dB ({self.timestamp})"
+
+    @property
+    def target_node(self):
+        """Convenience property to access the target node through the session."""
+        return self.session.target_node

@@ -95,8 +95,8 @@ export class WebSocketConnection {
             case 'signal_data':
                 // Pi sent us current signal data
                 this.lastSignalData = {
-                    rssi: data.rssi,
-                    snr: data.snr,
+                    snr_to_target: data.snr_to_target,
+                    snr_from_target: data.snr_from_target,
                     timestamp: data.timestamp
                 };
 
@@ -107,13 +107,13 @@ export class WebSocketConnection {
 
             case 'measurement_saved':
                 // Pi confirmed measurement was saved
-                console.log('Measurement saved:', data.measurement_id);
+                console.log('Trace saved:', data.trace_id);
 
                 if (this.onMeasurementSaved) {
                     this.onMeasurementSaved({
-                        id: data.measurement_id,
-                        rssi: data.rssi,
-                        snr: data.snr,
+                        id: data.trace_id,
+                        snr_to_target: data.snr_to_target,
+                        snr_from_target: data.snr_from_target,
                         latitude: data.latitude,
                         longitude: data.longitude
                     });
@@ -238,7 +238,7 @@ export class WebSocketConnection {
      * Request signal measurement from Pi
      * Pi will combine current GPS stream with radio signal data
      */
-    requestMeasurement(targetNodeId, sessionId) {
+    requestMeasurement(sessionId) {
         if (!this.isConnected || !this.ws) {
             throw new Error('Not connected to Pi');
         }
@@ -246,7 +246,6 @@ export class WebSocketConnection {
         try {
             this.ws.send(JSON.stringify({
                 type: 'request_measurement',
-                target_node_id: targetNodeId,
                 session_id: sessionId
             }));
         } catch (error) {

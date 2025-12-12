@@ -6,9 +6,8 @@
  */
 
 export class MeasurementCollector {
-    constructor(piConnection, targetNodeId, sessionId) {
+    constructor(piConnection, sessionId) {
         this.piConnection = piConnection;
-        this.targetNodeId = targetNodeId;
         this.sessionId = sessionId;
         this.mode = 'manual';
         this.interval = 5000; // milliseconds
@@ -16,6 +15,7 @@ export class MeasurementCollector {
         this.intervalId = null;
         this.measurementCount = 0;
         this.onMeasurement = null; // Callback for when measurement is collected
+        this.pendingMeasurementResolve = null; // Promise resolve for pending measurement
 
         // Listen for measurement confirmations from Pi
         this.piConnection.onMeasurementSaved = (data) => {
@@ -23,12 +23,18 @@ export class MeasurementCollector {
 
             if (this.onMeasurement) {
                 this.onMeasurement({
-                    rssi: data.rssi,
-                    snr: data.snr,
+                    snr_to_target: data.snr_to_target,
+                    snr_from_target: data.snr_from_target,
                     latitude: data.latitude,
                     longitude: data.longitude,
                     count: this.measurementCount
                 });
+            }
+
+            // Resolve pending measurement promise
+            if (this.pendingMeasurementResolve) {
+                this.pendingMeasurementResolve(data);
+                this.pendingMeasurementResolve = null;
             }
         };
     }
@@ -52,18 +58,33 @@ export class MeasurementCollector {
      *
      * With WebSocket architecture, GPS is already streaming to Pi.
      * We just need to request the Pi to combine current GPS + signal data.
+     * Returns a promise that resolves when the measurement is saved.
      */
     async collectOnce() {
-        try {
-            // Request measurement from Pi
-            // Pi will combine current GPS stream with radio signal data
-            // The result will come back via the onMeasurementSaved callback
-            this.piConnection.requestMeasurement(this.targetNodeId, this.sessionId);
+        return new Promise((resolve, reject) => {
+            try {
+                // Store the resolve function to be called when measurement is saved
+                this.pendingMeasurementResolve = resolve;
 
-        } catch (error) {
-            console.error('Failed to collect measurement:', error);
-            throw error;
-        }
+                // Request measurement from Pi
+                // Pi will combine current GPS stream with radio signal data
+                // The result will come back via the onMeasurementSaved callback
+                this.piConnection.requestMeasurement(this.sessionId);
+
+                // Set a timeout in case the measurement never completes
+                setTimeout(() => {
+                    if (this.pendingMeasurementResolve) {
+                        this.pendingMeasurementResolve = null;
+                        reject(new Error('Measurement timeout'));
+                    }
+                }, 15000); // 15 second timeout (longer than trace timeout)
+
+            } catch (error) {
+                console.error('Failed to collect measurement:', error);
+                this.pendingMeasurementResolve = null;
+                reject(error);
+            }
+        });
     }
 
     /**

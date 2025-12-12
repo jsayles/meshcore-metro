@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.gis.admin import GISModelAdmin
-from .models import Node, RepeaterStats, NeighbourInfo, SignalMeasurement, User
+from .models import Node, RepeaterStats, NeighbourInfo, MappingSession, Trace, User
 
 
 @admin.register(User)
@@ -70,24 +70,35 @@ class NeighbourInfoAdmin(admin.ModelAdmin):
     ]
 
 
-@admin.register(SignalMeasurement)
-class SignalMeasurementAdmin(GISModelAdmin):
+@admin.register(MappingSession)
+class MappingSessionAdmin(admin.ModelAdmin):
+    list_display = ["user", "target_node", "start_time", "end_time", "is_active"]
+    list_filter = ["start_time", "end_time", "user", "target_node"]
+    search_fields = ["user__username", "target_node__name", "target_node__mesh_identity", "notes"]
+    readonly_fields = ["start_time", "is_active", "duration"]
+    date_hierarchy = "start_time"
+    fieldsets = [
+        ("Session Info", {"fields": ["user", "target_node", "notes"]}),
+        ("Timing", {"fields": ["start_time", "end_time", "is_active", "duration"]}),
+    ]
+
+
+@admin.register(Trace)
+class TraceAdmin(GISModelAdmin):
     list_display = [
-        "target_node",
+        "session",
         "timestamp",
         "snr_to_target",
         "snr_from_target",
         "trace_success",
-        "session_id",
         "gps_accuracy",
     ]
-    list_filter = ["timestamp", "target_node", "trace_success", "session_id"]
-    search_fields = ["target_node__name", "target_node__mesh_identity"]
-    readonly_fields = ["timestamp"]
+    list_filter = ["timestamp", "session__target_node", "trace_success", "session"]
+    search_fields = ["session__target_node__name", "session__target_node__mesh_identity", "session__user__username"]
+    readonly_fields = ["timestamp", "target_node"]
     date_hierarchy = "timestamp"
     fieldsets = [
-        ("Target", {"fields": ["target_node", "timestamp"]}),
+        ("Session", {"fields": ["session", "target_node", "timestamp"]}),
         ("Location", {"fields": ["location", "altitude", "gps_accuracy"]}),
         ("Signal Data", {"fields": ["snr_to_target", "snr_from_target", "trace_success"]}),
-        ("Session", {"fields": ["session_id", "collector_user"]}),
     ]

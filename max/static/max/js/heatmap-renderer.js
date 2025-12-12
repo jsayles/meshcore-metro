@@ -12,11 +12,11 @@ export class HeatmapRenderer {
     }
 
     /**
-     * Load measurements from API for a specific target node
+     * Load traces from API for a specific target node
      */
     async loadData(targetNodeId) {
         try {
-            const response = await fetch(`/api/v1/measurements/?target_node=${targetNodeId}&ordering=-timestamp`);
+            const response = await fetch(`/api/v1/traces/?session__target_node=${targetNodeId}&ordering=-timestamp`);
 
             if (!response.ok) {
                 throw new Error(`API error: ${response.status}`);
@@ -57,12 +57,12 @@ export class HeatmapRenderer {
         // Convert measurements to heatmap format: [lat, lon, intensity]
         const heatData = this.measurements.map(feature => {
             const coords = feature.geometry.coordinates; // [lon, lat]
-            const rssi = feature.properties.rssi;
+            const snr = feature.properties.snr_from_target; // Use SNR from target
 
             return [
                 coords[1],  // latitude
                 coords[0],  // longitude
-                this.normalizeRSSI(rssi)  // intensity
+                this.normalizeSNR(snr)  // intensity
             ];
         });
 
@@ -101,18 +101,18 @@ export class HeatmapRenderer {
     }
 
     /**
-     * Normalize RSSI value to 0-1 range for heatmap intensity
-     * RSSI typically ranges from -120 (very weak) to -30 (very strong) dBm
+     * Normalize SNR value to 0-1 range for heatmap intensity
+     * SNR typically ranges from -10 (very weak) to 10 (very strong) dB
      */
-    normalizeRSSI(rssi) {
-        const minRSSI = -120;
-        const maxRSSI = -30;
+    normalizeSNR(snr) {
+        const minSNR = -10;
+        const maxSNR = 10;
 
         // Clamp value
-        const clampedRSSI = Math.max(minRSSI, Math.min(maxRSSI, rssi));
+        const clampedSNR = Math.max(minSNR, Math.min(maxSNR, snr));
 
         // Normalize to 0-1 range
-        const normalized = (clampedRSSI - minRSSI) / (maxRSSI - minRSSI);
+        const normalized = (clampedSNR - minSNR) / (maxSNR - minSNR);
 
         return normalized;
     }

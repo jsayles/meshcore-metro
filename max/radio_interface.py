@@ -6,6 +6,7 @@ Used by Signal Mapper WebSocket consumer for on-demand signal readings.
 
 import asyncio
 import logging
+import time
 from meshcore import MeshCore, SerialConnection, EventType
 from django.conf import settings
 
@@ -71,20 +72,26 @@ class RadioInterface:
             # Subscribe to trace data events
             trace_received = asyncio.Event()
             trace_data = {}
+            trace_start_time = time.time()
 
             async def on_trace_data(event):
-                logger.debug(f"Trace data received: {event.payload}")
+                logger.info(f"Trace data received: {event.payload}")
                 trace_data["payload"] = event.payload
                 trace_received.set()
 
             subscription = self.mc.subscribe(EventType.TRACE_DATA, on_trace_data)
+            logger.info(f"Subscribed to TRACE_DATA events")
 
             try:
                 # Send trace command
+                logger.info(f"Sending trace command with path: {node_hash}")
                 await self.mc.commands.send_trace(path=node_hash)
+                logger.info(f"Trace command sent, waiting for response...")
 
                 # Wait for trace response (with timeout)
                 await asyncio.wait_for(trace_received.wait(), timeout=10.0)
+                trace_duration = time.time() - trace_start_time
+                logger.info(f"Trace response received! Duration: {trace_duration:.2f}s")
 
                 # Extract signal data from trace response
                 payload = trace_data.get("payload", {})
@@ -108,7 +115,8 @@ class RadioInterface:
                 subscription.unsubscribe()
 
         except asyncio.TimeoutError:
-            logger.error("Timeout waiting for trace response")
+            trace_duration = time.time() - trace_start_time
+            logger.error(f"Timeout waiting for trace response after {trace_duration:.2f}s")
             return None
         except Exception as e:
             logger.error(f"Failed to read signal from radio: {e}")

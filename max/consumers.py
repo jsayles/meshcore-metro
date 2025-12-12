@@ -17,7 +17,7 @@ from channels.db import database_sync_to_async
 
 from django.contrib.gis.geos import Point
 
-from max.models import SignalMeasurement, Node
+from max.models import MappingSession, Trace, Node
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +89,7 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
             gps_data: dict with latitude, longitude, altitude, accuracy, timestamp
         """
         try:
+            logger.debug(f"Received GPS data packet: {gps_data}")
             self.current_gps = {
                 "latitude": gps_data.get("latitude"),
                 "longitude": gps_data.get("longitude"),
@@ -96,44 +97,46 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
                 "accuracy": gps_data.get("accuracy"),
                 "timestamp": gps_data.get("timestamp"),
             }
-
-            logger.debug(f"GPS updated: {self.current_gps['latitude']}, {self.current_gps['longitude']}")
-
-            # TODO: Trigger signal reading from radio here
-            # For now, we'll wait for explicit measurement requests
-            # In the future, this could automatically combine with radio data
-
         except Exception as e:
             logger.error(f"Error handling GPS data: {e}")
             await self.send_error(f"GPS data error: {e}")
 
     async def handle_measurement_request(self, message):
         """
-        Handle request to save a measurement.
+        Handle request to save a trace measurement.
 
         Combines current GPS data with signal data from radio and saves to database.
 
         Args:
-            message: dict with target_node_id, session_id
+            message: dict with session_id (MappingSession ID)
         """
         try:
-            target_node_id = message.get("target_node_id")
             session_id = message.get("session_id")
 
-            if not target_node_id or not session_id:
-                await self.send_error("Missing target_node_id or session_id")
+            if not session_id:
+                await self.send_error("Missing session_id")
                 return
 
             if not self.current_gps:
                 await self.send_error("No GPS data available")
                 return
 
-            # Read current signal data from radio
-            signal_data = await self.get_signal_from_radio(target_node_id)
+            # Verify session exists and is active
+            session = await self.get_session(session_id)
+            if not session:
+                await self.send_error(f"Session {session_id} not found")
+                return
 
-            # Always save measurement, even if trace failed
+            if not session["is_active"]:
+                await self.send_error(f"Session {session_id} is not active")
+                return
+
+            # Read current signal data from radio
+            signal_data = await self.get_signal_from_radio(session["target_node_id"])
+
+            # Always save trace, even if trace failed
             if not signal_data:
-                logger.warning("Trace failed, saving measurement with default values")
+                logger.warning("Trace failed, saving trace with default values")
                 signal_data = {
                     "snr_to_target": 0.0,
                     "snr_from_target": 0.0,
@@ -142,9 +145,8 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
             else:
                 trace_success = True
 
-            # Save measurement to database
-            measurement_id = await self.save_measurement(
-                target_node_id=target_node_id,
+            # Save trace to database
+            trace_id = await self.save_trace(
                 session_id=session_id,
                 gps_data=self.current_gps,
                 signal_data=signal_data,
@@ -156,7 +158,7 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
                 text_data=json.dumps(
                     {
                         "type": "measurement_saved",
-                        "measurement_id": measurement_id,
+                        "trace_id": trace_id,
                         "snr_to_target": signal_data["snr_to_target"],
                         "snr_from_target": signal_data["snr_from_target"],
                         "latitude": self.current_gps["latitude"],
@@ -165,11 +167,11 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
                 )
             )
 
-            logger.info(f"Measurement saved: {measurement_id}")
+            logger.info(f"Trace saved: {trace_id}")
 
         except Exception as e:
             logger.error(f"Error handling measurement request: {e}")
-            await self.send_error(f"Failed to save measurement: {e}")
+            await self.send_error(f"Failed to save trace: {e}")
 
     async def get_signal_from_radio(self, target_node_id):
         """
@@ -198,47 +200,65 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
             return None
 
     @database_sync_to_async
-    def save_measurement(self, target_node_id, session_id, gps_data, signal_data, trace_success):
+    def get_session(self, session_id):
         """
-        Save measurement to database.
+        Get mapping session from database.
 
         Args:
-            target_node_id: ID of target node
-            session_id: Session UUID
+            session_id: MappingSession ID
+
+        Returns:
+            dict with session info or None if not found
+        """
+        try:
+            session = MappingSession.objects.get(id=session_id)
+            return {
+                "id": session.id,
+                "target_node_id": session.target_node.id,
+                "is_active": session.is_active,
+            }
+        except MappingSession.DoesNotExist:
+            return None
+
+    @database_sync_to_async
+    def save_trace(self, session_id, gps_data, signal_data, trace_success):
+        """
+        Save trace to database.
+
+        Args:
+            session_id: MappingSession ID
             gps_data: GPS coordinates and metadata
             signal_data: SNR values
             trace_success: Whether the trace succeeded
 
         Returns:
-            Measurement ID
+            Trace ID
         """
         try:
-            # Get target node
-            target_node = Node.objects.get(id=target_node_id)
+            # Get session
+            session = MappingSession.objects.get(id=session_id)
 
             # Create Point for location
             location = Point(gps_data["longitude"], gps_data["latitude"], srid=4326)
 
-            # Create measurement
-            measurement = SignalMeasurement.objects.create(
+            # Create trace
+            trace = Trace.objects.create(
+                session=session,
                 location=location,
                 altitude=gps_data.get("altitude"),
                 gps_accuracy=gps_data.get("accuracy"),
-                target_node=target_node,
                 snr_to_target=signal_data["snr_to_target"],
                 snr_from_target=signal_data["snr_from_target"],
                 trace_success=trace_success,
-                session_id=session_id,
-                collector_user=None,  # Anonymous for now
             )
 
-            return measurement.id
+            return trace.id
 
-        except Node.DoesNotExist:
-            msg = f"Target node {target_node_id} not found"
+        except MappingSession.DoesNotExist:
+            msg = f"Session {session_id} not found"
             raise ValueError(msg)
         except Exception as e:
-            logger.error(f"Database error saving measurement: {e}")
+            logger.error(f"Database error saving trace: {e}")
             raise
 
     async def send_error(self, message):
@@ -252,14 +272,14 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
         This can be called by background services to push real-time signal data.
 
         Args:
-            signal_data: dict with rssi, snr, timestamp
+            signal_data: dict with snr_to_target, snr_from_target, timestamp
         """
         await self.send(
             text_data=json.dumps(
                 {
                     "type": "signal_data",
-                    "rssi": signal_data["rssi"],
-                    "snr": signal_data["snr"],
+                    "snr_to_target": signal_data["snr_to_target"],
+                    "snr_from_target": signal_data["snr_from_target"],
                     "timestamp": signal_data["timestamp"],
                 }
             )
