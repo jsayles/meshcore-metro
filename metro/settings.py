@@ -99,9 +99,9 @@ DATABASES = {
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
         "NAME": "metrodb",
-        "USER": "postgres",
+        "USER": os.getenv("USER", "postgres"),  # Use system user for peer auth
         "PASSWORD": "",
-        "HOST": "localhost",
+        "HOST": "",  # Empty string uses Unix socket (peer authentication)
         "PORT": "5432",
     }
 }

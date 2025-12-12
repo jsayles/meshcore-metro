@@ -69,40 +69,14 @@ sudo -u postgres psql metrodb -c "GRANT ALL ON SCHEMA public TO $USER;"
 echo "=> Installing Python dependencies..."
 uv sync
 
-# Create .env file
+# Create .env file (optional - for production settings)
 echo "=> Creating .env configuration..."
-echo "   Generating Django SECRET_KEY..."
-SECRET_KEY=$(uv run python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
-
-if [ -z "$SECRET_KEY" ]; then
-    echo "ERROR: Failed to generate SECRET_KEY"
-    exit 1
-fi
-
-echo "   Writing .env file..."
 cat > .env << EOF
-# Database (using peer authentication via Unix socket - no password needed)
-DATABASE_URL=postgresql://$USER@/metrodb
-
-# Django
-SECRET_KEY=$SECRET_KEY
+SECRET_KEY=$(uv run python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())')
 DEBUG=False
 ALLOWED_HOSTS=*
-
-# Redis
-REDIS_URL=redis://localhost:6379/0
 EOF
-
-echo ""
-echo "Generated .env file with DATABASE_URL:"
-echo "  postgresql://$USER@/metrodb (Unix socket)"
-echo ""
-
-# Verify .env file was created
-if [ ! -f .env ]; then
-    echo "ERROR: Failed to create .env file"
-    exit 1
-fi
+echo "   .env file created with production settings"
 
 echo "=> Running database migrations..."
 uv run python manage.py migrate
