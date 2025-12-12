@@ -44,6 +44,8 @@ Visit: `https://<hostname>.local:8443/` (accept the self-signed certificate warn
 3. Run `bin/start_server.sh` on the Pi
 4. Scan the QR code or visit `https://<hostname>.local:8443/` on your phone
 
+**Reconfigure WiFi:** Run `bin/configure_wifi.sh` anytime to add/change your phone's hotspot connection
+
 ### Development Setup (Mac/Linux)
 
 - Python 3.14+

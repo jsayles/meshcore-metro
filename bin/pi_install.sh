@@ -64,80 +64,24 @@ if ! command -v uv &> /dev/null; then
     exit 1
 fi
 
-# Configure WiFi for phone hotspot (additive - doesn't remove existing networks)
+# Configure WiFi for phone hotspot
 echo ""
-echo "=> Configuring WiFi connection to phone hotspot..."
+echo "=> WiFi Configuration for Field Operations"
 echo ""
 echo "For field operations, the Pi needs to connect to your phone's WiFi hotspot."
-echo "This will ADD a new WiFi connection without removing any existing networks."
 echo ""
+read -p "Configure WiFi now? (y/n) [y]: " CONFIGURE_WIFI
+CONFIGURE_WIFI=${CONFIGURE_WIFI:-y}
 
-# Scan for available WiFi networks
-echo "Scanning for available WiFi networks..."
-sudo nmcli dev wifi rescan 2>/dev/null || true
-sleep 2
-
-# Get list of SSIDs (excluding the header and empty lines)
-mapfile -t WIFI_NETWORKS < <(sudo nmcli -t -f SSID dev wifi list | grep -v '^$' | sort -u)
-
-if [ ${#WIFI_NETWORKS[@]} -gt 0 ]; then
-    echo ""
-    echo "Available WiFi networks:"
-    echo "  0) Skip WiFi configuration"
-    echo "  1) Enter SSID manually"
-    for i in "${!WIFI_NETWORKS[@]}"; do
-        echo "  $((i+2))) ${WIFI_NETWORKS[$i]}"
-    done
-    echo ""
-    read -p "Select your phone's hotspot (0-$((${#WIFI_NETWORKS[@]}+1))): " WIFI_CHOICE
-
-    if [ "$WIFI_CHOICE" = "0" ]; then
-        echo "   Skipping WiFi configuration"
-        HOTSPOT_SSID=""
-    elif [ "$WIFI_CHOICE" = "1" ]; then
-        read -p "Enter your phone's hotspot SSID: " HOTSPOT_SSID
-    elif [ "$WIFI_CHOICE" -ge 2 ] && [ "$WIFI_CHOICE" -le $((${#WIFI_NETWORKS[@]}+1)) ]; then
-        HOTSPOT_SSID="${WIFI_NETWORKS[$((WIFI_CHOICE-2))]}"
-        echo "Selected: $HOTSPOT_SSID"
-    else
-        echo "   Invalid selection, skipping WiFi configuration"
-        HOTSPOT_SSID=""
-    fi
+if [ "$CONFIGURE_WIFI" = "y" ] || [ "$CONFIGURE_WIFI" = "Y" ]; then
+    # Run the standalone WiFi configuration script
+    bash "$(dirname "$0")/configure_wifi.sh" || {
+        echo "   WiFi configuration skipped or failed"
+        echo "   You can run it later with: bin/configure_wifi.sh"
+    }
 else
-    echo "   No WiFi networks found. You can configure manually later."
-    read -p "Enter your phone's hotspot SSID [or press Enter to skip]: " HOTSPOT_SSID
-fi
-
-if [ -n "$HOTSPOT_SSID" ]; then
-    read -sp "Enter password for '$HOTSPOT_SSID': " HOTSPOT_PASSWORD
-    echo ""
-    echo ""
-
-    if [ -n "$HOTSPOT_PASSWORD" ]; then
-        echo "=> Adding WiFi connection profile..."
-
-        # Use nmcli to add connection (Raspberry Pi OS Bookworm uses NetworkManager)
-        # This is additive - it doesn't remove or modify existing connections
-        if sudo nmcli connection add \
-            con-name "phone-hotspot" \
-            ifname wlan0 \
-            type wifi \
-            ssid "$HOTSPOT_SSID" \
-            wifi-sec.key-mgmt wpa-psk \
-            wifi-sec.psk "$HOTSPOT_PASSWORD" \
-            autoconnect yes \
-            autoconnect-priority 10; then
-            echo "   WiFi connection 'phone-hotspot' added successfully"
-            echo "   Pi will auto-connect to '$HOTSPOT_SSID' when available"
-            echo "   Your existing WiFi connections are still configured"
-        else
-            echo "   ERROR: Failed to add WiFi connection"
-            echo "   You may need to configure WiFi manually using:"
-            echo "   sudo nmcli device wifi connect \"$HOTSPOT_SSID\" password \"your-password\""
-        fi
-    else
-        echo "   Skipping - no password provided"
-    fi
+    echo "   Skipping WiFi configuration"
+    echo "   You can configure it later with: bin/configure_wifi.sh"
 fi
 
 # Enable Avahi for mDNS
