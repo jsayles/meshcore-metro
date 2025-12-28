@@ -264,6 +264,45 @@
     right: calc(var(--sidebar-width) + 20px);
 }
 
+/* Radio Warning Box */
+.warning-box {
+    border: 2px solid var(--danger-color);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 15px;
+    background: #fff5f5;
+}
+
+.warning-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.warning-icon {
+    font-size: 20px;
+}
+
+.warning-title {
+    font-weight: bold;
+    font-size: 15px;
+    color: var(--danger-color);
+}
+
+.warning-message {
+    margin: 8px 0;
+    font-size: 13px;
+    color: var(--text-color);
+}
+
+.warning-help {
+    margin: 8px 0 0 0;
+    font-size: 12px;
+    color: var(--muted-color);
+    font-style: italic;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
     :root {

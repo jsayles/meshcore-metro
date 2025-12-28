@@ -11,6 +11,7 @@ export class WebSocketConnection {
     constructor() {
         this.ws = null;
         this.isConnected = false;
+        this.isRadioConnected = false;
         this.lastSignalData = null;
         this.reconnectInterval = null;
         this.reconnectDelay = 5000; // 5 seconds
@@ -20,6 +21,7 @@ export class WebSocketConnection {
         this.onSignalUpdate = null;
         this.onConnectionChange = null;
         this.onMeasurementSaved = null;
+        this.onRadioStatusChange = null;
     }
 
     /**
@@ -90,6 +92,19 @@ export class WebSocketConnection {
         switch (data.type) {
             case 'connected':
                 console.log('Pi welcome:', data.message);
+                break;
+
+            case 'radio_status':
+                // Pi sent us radio connection status
+                this.isRadioConnected = data.connected;
+                console.log('Radio status:', data.connected ? 'Connected' : 'Disconnected');
+
+                if (this.onRadioStatusChange) {
+                    this.onRadioStatusChange({
+                        connected: data.connected,
+                        error: data.error || null
+                    });
+                }
                 break;
 
             case 'signal_data':
@@ -252,6 +267,31 @@ export class WebSocketConnection {
             console.error('Failed to request measurement:', error);
             throw error;
         }
+    }
+
+    /**
+     * Request radio status check from Pi
+     */
+    requestRadioStatus() {
+        if (!this.isConnected || !this.ws) {
+            throw new Error('Not connected to Pi');
+        }
+
+        try {
+            this.ws.send(JSON.stringify({
+                type: 'radio_status_request'
+            }));
+        } catch (error) {
+            console.error('Failed to request radio status:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Check if system is ready for measurements (both websocket and radio)
+     */
+    isReadyForMeasurements() {
+        return this.isConnected && this.isRadioConnected;
     }
 
     /**

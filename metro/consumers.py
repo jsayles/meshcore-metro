@@ -30,8 +30,10 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
     Message types from phone:
     - gps_data: GPS coordinates from phone
     - request_measurement: Request to save a measurement
+    - radio_status_request: Request to check radio connection status
 
     Message types to phone:
+    - radio_status: Radio connection status (connected: bool, error: str)
     - signal_data: Current signal strength from radio
     - measurement_saved: Confirmation of saved measurement
     - error: Error message
@@ -50,10 +52,13 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
 
         # Initialize radio connection
         self.radio = RadioInterface()
-        await self.radio.connect()
+        radio_connected = await self.radio.connect()
 
         # Send welcome message
         await self.send(text_data=json.dumps({"type": "connected", "message": "Connected to Pi"}))
+
+        # Immediately send radio status after websocket connects
+        await self.send_radio_status(radio_connected)
 
     async def disconnect(self, close_code):
         """Handle WebSocket disconnection."""
@@ -79,6 +84,8 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
                 await self.handle_gps_data(message.get("data", {}))
             elif message_type == "request_measurement":
                 await self.handle_measurement_request(message)
+            elif message_type == "radio_status_request":
+                await self.handle_radio_status_request()
             else:
                 logger.warning(f"Unknown message type: {message_type}")
 
@@ -267,6 +274,40 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.error(f"Database error saving trace: {e}")
             raise
+
+    async def handle_radio_status_request(self):
+        """Handle request to check radio connection status."""
+        try:
+            if not self.radio:
+                await self.send_radio_status(False, "Radio not initialized")
+                return
+
+            # Check if radio is connected and responding
+            is_connected = await self.radio.check_connection()
+            await self.send_radio_status(is_connected)
+
+        except Exception as e:
+            logger.error(f"Error checking radio status: {e}")
+            await self.send_radio_status(False, str(e))
+
+    async def send_radio_status(self, is_connected, error_message=None):
+        """
+        Send radio connection status to phone.
+
+        Args:
+            is_connected: bool - whether radio is connected
+            error_message: str - error details if disconnected
+        """
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "radio_status",
+                    "connected": is_connected,
+                    "error": error_message,
+                }
+            )
+        )
+        logger.info(f"Sent radio status: connected={is_connected}, error={error_message}")
 
     async def send_error(self, message):
         """Send error message to phone."""

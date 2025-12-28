@@ -42,6 +42,35 @@ class RadioInterface:
             logger.error(f"Failed to connect to radio: {e}")
             return False
 
+    async def check_connection(self):
+        """
+        Check if radio is connected and responding.
+
+        Returns:
+            bool: True if radio is connected and responding, False otherwise
+        """
+        if not self.mc or not self.serial_cx:
+            logger.warning("Radio not initialized - attempting reconnect")
+            return await self.connect()
+
+        try:
+            # Check if serial connection is alive
+            if not self.serial_cx.serial or not self.serial_cx.serial.is_open:
+                logger.warning("Serial connection not open - attempting reconnect")
+                await self.disconnect()
+                return await self.connect()
+
+            # Try to get radio contacts as a health check
+            # This verifies the radio is connected and communicating
+            await self.mc.ensure_contacts()
+            logger.info("Radio connection check passed")
+            return True
+        except Exception as e:
+            logger.error(f"Radio connection check failed: {e}")
+            # Try to reconnect
+            await self.disconnect()
+            return await self.connect()
+
     async def disconnect(self):
         """Close serial connection."""
         if self.mc:

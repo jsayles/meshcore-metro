@@ -41,14 +41,39 @@
                         <span id="status-location" class="init-status">Waiting...</span>
                     </div>
 
-                    <!-- Step 3: Companion Radio -->
+                    <!-- Step 3: WebSocket Connection -->
+                    <div class="init-item">
+                        <span class="init-label">WebSocket:</span>
+                        <span id="status-websocket" class="init-status">Waiting...</span>
+                    </div>
+
+                    <!-- Step 4: Radio Connection -->
                     <div class="init-item">
                         <span class="init-label">Radio:</span>
                         <span id="status-radio" class="init-status">Waiting...</span>
-                        <button id="btn-connect" class="btn btn-primary btn-sm" style="display: none; margin-left: 8px;">Connect</button>
+                        <button id="btn-retry-radio" class="btn btn-primary btn-sm" style="display: none; margin-left: 8px;">Retry Radio</button>
+                    </div>
+
+                    <!-- Connect Button -->
+                    <div class="init-item" style="margin-top: 8px;">
+                        <button id="btn-connect" class="btn btn-primary btn-sm" style="display: none; width: 100%;">Connect</button>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Radio Warning Box -->
+        <div id="radio-warning" class="warning-box" style="display: none;">
+            <div class="warning-header">
+                <span class="warning-icon">⚠️</span>
+                <span class="warning-title">Radio Not Connected</span>
+            </div>
+            <p id="radio-error-message" class="warning-message">
+                Could not connect to companion radio.
+            </p>
+            <p class="warning-help">
+                Please check that the MeshCore radio is connected via USB and powered on.
+            </p>
         </div>
 
         <!-- Session Management Section -->

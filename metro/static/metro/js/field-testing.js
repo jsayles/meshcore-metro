@@ -23,6 +23,7 @@ class FieldTester {
         this.repeaterMarker = null;
         this.userMarker = null;
         this.userLocation = null;
+        this.isRadioConnected = false;
     }
 
     /**
@@ -239,6 +240,9 @@ class FieldTester {
         // WebSocket Connection
         document.getElementById('btn-connect').addEventListener('click', () => this.connectToWS());
 
+        // Radio status retry button
+        document.getElementById('btn-retry-radio').addEventListener('click', () => this.retryRadioConnection());
+
         // Session management
         document.getElementById('btn-start-session').addEventListener('click', () => this.startSession());
         document.getElementById('btn-end-session').addEventListener('click', () => this.endSession());
@@ -288,36 +292,116 @@ class FieldTester {
      */
     async connectToWS() {
         const btn = document.getElementById('btn-connect');
-        const status = document.getElementById('status-radio');
+        const wsStatus = document.getElementById('status-websocket');
+        const radioStatus = document.getElementById('status-radio');
 
         try {
             btn.disabled = true;
             btn.textContent = 'Connecting...';
-            status.textContent = 'Connecting...';
+            wsStatus.textContent = 'Connecting...';
+            radioStatus.textContent = 'Waiting...';
+
+            // Set up radio status callback BEFORE connecting
+            this.wsConnection.onRadioStatusChange = (status) => {
+                this.handleRadioStatusChange(status);
+            };
 
             // Connect via WebSocket
             await this.wsConnection.connect();
 
-            // Update status and hide button
-            status.textContent = 'Connected';
-            status.style.color = 'var(--success-color)';
+            // Update WebSocket status
+            wsStatus.textContent = 'Connected';
+            wsStatus.style.color = 'var(--success-color)';
+
+            // Hide connect button (websocket is connected)
             btn.style.display = 'none';
 
-            this.showMessage('Connected! GPS streaming started.', 'success');
-
-            // Show session section now that all steps are complete
-            document.getElementById('session-section').style.display = 'block';
-
-            // Load existing heatmap data for this repeater
-            await this.loadAndDisplayHeatmap();
+            // Radio status will be updated via callback
+            // Don't show session section yet - wait for radio
 
         } catch (error) {
             console.error('Connection failed:', error);
-            status.textContent = 'Failed';
+            wsStatus.textContent = 'Failed';
+            radioStatus.textContent = 'N/A';
             btn.textContent = 'Retry Connection';
             btn.disabled = false;
 
             this.showMessage(`Connection failed: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * Handle radio status change from WebSocket
+     */
+    handleRadioStatusChange(status) {
+        const radioStatus = document.getElementById('status-radio');
+        const retryBtn = document.getElementById('btn-retry-radio');
+        const warningBox = document.getElementById('radio-warning');
+
+        this.isRadioConnected = status.connected;
+
+        if (status.connected) {
+            // Radio is connected
+            radioStatus.textContent = 'Connected';
+            radioStatus.style.color = 'var(--success-color)';
+            retryBtn.style.display = 'none';
+            warningBox.style.display = 'none';
+
+            this.showMessage('Radio connected! GPS streaming started.', 'success');
+
+            // NOW show session section (both websocket AND radio are ready)
+            document.getElementById('session-section').style.display = 'block';
+
+            // Load existing heatmap data for this repeater
+            this.loadAndDisplayHeatmap();
+
+        } else {
+            // Radio is NOT connected
+            radioStatus.textContent = 'Disconnected';
+            radioStatus.style.color = 'var(--danger-color)';
+            retryBtn.style.display = 'inline-block';
+
+            // Show warning box
+            warningBox.style.display = 'block';
+            const errorMsg = document.getElementById('radio-error-message');
+            errorMsg.textContent = status.error || 'Could not connect to companion radio.';
+
+            // Hide session section - can't collect without radio
+            document.getElementById('session-section').style.display = 'none';
+
+            this.showMessage('Radio connection failed. Please check hardware.', 'error');
+        }
+    }
+
+    /**
+     * Retry radio connection
+     */
+    async retryRadioConnection() {
+        const retryBtn = document.getElementById('btn-retry-radio');
+        const radioStatus = document.getElementById('status-radio');
+
+        try {
+            retryBtn.disabled = true;
+            retryBtn.textContent = 'Checking...';
+            radioStatus.textContent = 'Checking...';
+            radioStatus.style.color = 'var(--text-muted)';
+
+            // Request radio status check
+            this.wsConnection.requestRadioStatus();
+
+            // Status will be updated via callback
+
+        } catch (error) {
+            console.error('Radio status check failed:', error);
+            retryBtn.disabled = false;
+            retryBtn.textContent = 'Retry Radio';
+            this.showMessage(`Status check failed: ${error.message}`, 'error');
+        } finally {
+            // Re-enable button after a short delay (callback will update status)
+            setTimeout(() => {
+                retryBtn.disabled = false;
+                retryBtn.textContent = 'Retry Radio';
+            }, 1000);
         }
     }
 
@@ -495,6 +579,12 @@ class FieldTester {
      * Collect single manual measurement
      */
     async collectManual() {
+        // Block if radio is not connected
+        if (!this.wsConnection.isReadyForMeasurements()) {
+            this.showMessage('Cannot collect: Radio is not connected', 'error');
+            return;
+        }
+
         if (!this.currentFieldTest) {
             this.showMessage('Please start a field test first', 'warning');
             return;
@@ -542,6 +632,12 @@ class FieldTester {
      * Start continuous collection
      */
     startContinuous() {
+        // Block if radio is not connected
+        if (!this.wsConnection.isReadyForMeasurements()) {
+            this.showMessage('Cannot start collection: Radio is not connected', 'error');
+            return;
+        }
+
         if (!this.currentFieldTest) {
             this.showMessage('Please start a field test first', 'warning');
             return;
