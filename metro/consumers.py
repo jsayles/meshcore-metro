@@ -18,7 +18,7 @@ from channels.db import database_sync_to_async
 from django.contrib.gis.geos import Point
 
 from metro.models import FieldTest, Trace, Node
-from metro.radio import RadioInterface
+from metro.subsystems import lora_radio
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class SignalStreamConsumer(AsyncWebsocketConsumer):
         logger.info("Phone connected to WebSocket")
 
         # Initialize radio connection
-        self.radio = RadioInterface()
+        self.radio = lora_radio.RadioInterface()
         radio_connected = await self.radio.connect()
 
         # Send welcome message

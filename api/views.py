@@ -13,8 +13,7 @@ from django.utils import timezone
 from api.serializers import NodeSerializer, FieldTestSerializer, TraceSerializer, HotspotConfigSerializer
 
 from metro.models import Node, FieldTest, Trace, Role, HotspotConfig
-from metro.radio import RadioInterface
-from metro.subsystems import wifi_hotspot
+from metro.subsystems import lora_radio, wifi_hotspot
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,7 @@ class NodeViewSet(viewsets.ModelViewSet):
         try:
             # Run discovery in async context
             async def run_discovery():
-                radio = RadioInterface()
+                radio = lora_radio.RadioInterface()
                 await radio.connect()
                 try:
                     timeout = request.data.get("timeout", 30)

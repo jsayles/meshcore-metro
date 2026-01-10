@@ -14,7 +14,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from metro.models import Node, Role
-from metro.radio import RadioInterface
+from metro.subsystems import lora_radio
 
 
 class Command(BaseCommand):
@@ -36,7 +36,7 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Connecting to {port}...")
 
-        radio = RadioInterface(port=port)
+        radio = lora_radio.RadioInterface(port=port)
 
         try:
             connection_successful = await radio.connect()
