@@ -60,14 +60,6 @@
                 {% endif %}
             </div>
 
-            {% if node.role == 0 %}
-            <!-- Field Testing Actions (Repeaters only) -->
-            <div class="actions">
-                <a href="{% url 'field_test' %}?node={{ node.id }}" class="btn btn-primary">
-                    📡 Field Test
-                </a>
-            </div>
-            {% endif %}
         </div>
 
         <!-- Map Card -->

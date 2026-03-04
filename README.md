@@ -88,7 +88,8 @@ uv run daphne -b 0.0.0.0 -p 8000 metro.asgi:application
 uv run python manage.py find_usb_radio
 uv run python manage.py find_usb_radio --save
 
-# Update repeater telemetry
+# Sync repeater data from radio (telemetry, names, location)
+# Run this if repeaters have been renamed and the new name hasn't propagated yet
 uv run python manage.py load_radio_data
 
 # Run migrations

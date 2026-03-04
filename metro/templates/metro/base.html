@@ -40,32 +40,6 @@
             margin-right: 20px;
         }
 
-        /* Config Submenu */
-        .config-submenu {
-            background: var(--background-color);
-            border-bottom: 2px solid var(--border-color);
-            display: flex;
-            gap: 0;
-            padding: 0 20px;
-        }
-
-        .submenu-tab {
-            padding: 12px 24px;
-            text-decoration: none;
-            color: var(--text-color);
-            border-bottom: 3px solid transparent;
-            transition: all 0.2s;
-        }
-
-        .submenu-tab:hover {
-            background: var(--hover-bg);
-        }
-
-        .submenu-tab.active {
-            border-bottom-color: var(--primary-color);
-            color: var(--primary-color);
-            font-weight: 500;
-        }
     </style>
 
     {% block extra_css %}{% endblock %}
@@ -75,21 +49,9 @@
     <nav class="navbar">
         <span class="brand-title">MeshCore METRO:</span>
         <a href="{% url 'home' %}" {% if request.path == '/' %}class="active"{% endif %}>Home</a>
-        <a href="{% url 'field_test' %}" {% if 'field-test' in request.path %}class="active"{% endif %}>Field Tests</a>
         <a href="{% url 'config_mesh' %}" title="Configuration" {% if 'config' in request.path %}class="active"{% endif %}>⚙️ Configuration</a>
     </nav>
 
-    <!-- Config Submenu - only shown on config pages -->
-    {% if 'config' in request.path %}
-    <div class="config-submenu">
-        <a href="{% url 'config_mesh' %}" class="submenu-tab {% if 'config/mesh' in request.path %}active{% endif %}">
-            Mesh
-        </a>
-        <a href="{% url 'config_hotspot' %}" class="submenu-tab {% if 'config/hotspot' in request.path %}active{% endif %}">
-            Hotspot
-        </a>
-    </div>
-    {% endif %}
 
     {% block content %}{% endblock %}
 

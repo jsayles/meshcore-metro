@@ -14,7 +14,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "metro.settings")
 django_asgi_app = get_asgi_application()
 
 # Import after Django initialization to avoid AppRegistryNotReady errors
-from metro.consumers import SignalStreamConsumer  # noqa: E402
+from metro.consumers import MonitoringConsumer  # noqa: E402
 
 
 application = ProtocolTypeRouter(
@@ -23,7 +23,7 @@ application = ProtocolTypeRouter(
         "websocket": AuthMiddlewareStack(
             URLRouter(
                 [
-                    path("ws/signal/", SignalStreamConsumer.as_asgi()),
+                    path("ws/monitoring/", MonitoringConsumer.as_asgi()),
                 ]
             )
         ),

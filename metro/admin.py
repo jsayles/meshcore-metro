@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.gis.admin import GISModelAdmin
-from .models import Node, RepeaterStats, NeighbourInfo, FieldTest, Trace, HotspotConfig
+from .models import Node, RepeaterStats, NeighbourInfo
 
 
 @admin.register(Node)
@@ -60,49 +60,3 @@ class NeighbourInfoAdmin(admin.ModelAdmin):
         ("Timestamps", {"fields": ["advert_timestamp", "heard_timestamp", "last_updated"]}),
         ("Signal Quality", {"fields": ["snr"]}),
     ]
-
-
-@admin.register(FieldTest)
-class FieldTestAdmin(admin.ModelAdmin):
-    list_display = ["target_node", "start_time", "end_time", "is_active"]
-    list_filter = ["start_time", "end_time", "target_node"]
-    search_fields = ["target_node__name", "target_node__mesh_identity", "notes"]
-    readonly_fields = ["start_time", "is_active", "duration"]
-    date_hierarchy = "start_time"
-    fieldsets = [
-        ("Field Test Info", {"fields": ["target_node", "notes"]}),
-        ("Timing", {"fields": ["start_time", "end_time", "is_active", "duration"]}),
-    ]
-
-
-@admin.register(Trace)
-class TraceAdmin(GISModelAdmin):
-    list_display = [
-        "field_test",
-        "timestamp",
-        "snr_to_target",
-        "snr_from_target",
-        "trace_success",
-        "gps_accuracy",
-    ]
-    list_filter = ["timestamp", "field_test__target_node", "trace_success", "field_test"]
-    search_fields = ["field_test__target_node__name", "field_test__target_node__mesh_identity"]
-    readonly_fields = ["timestamp", "target_node"]
-    date_hierarchy = "timestamp"
-    fieldsets = [
-        ("Field Test", {"fields": ["field_test", "target_node", "timestamp"]}),
-        ("Location", {"fields": ["location", "altitude", "gps_accuracy"]}),
-        ("Signal Data", {"fields": ["snr_to_target", "snr_from_target", "trace_success"]}),
-    ]
-
-
-@admin.register(HotspotConfig)
-class HotspotConfigAdmin(admin.ModelAdmin):
-    list_display = ["ssid"]
-    exclude = ["password"]  # Hide password field for security
-
-    def has_add_permission(self, request):
-        return not HotspotConfig.objects.exists()
-
-    def has_delete_permission(self, request, obj=None):
-        return False
