@@ -78,6 +78,7 @@ class NodeViewSet(viewsets.ModelViewSet):
         node = self.get_object()
 
         try:
+
             async def run_ping():
                 radio = lora_radio.RadioInterface()
                 await radio.connect()
@@ -100,12 +101,14 @@ class NodeViewSet(viewsets.ModelViewSet):
                 return Response({"reachable": False, "error": "No response (timeout)"})
 
             Node.objects.filter(pk=node.pk).update(last_seen=timezone.now())
-            return Response({
-                "reachable": True,
-                "snr_to_target": signal.get("snr_to_target"),
-                "snr_from_target": signal.get("snr_from_target"),
-                "latency_ms": elapsed_ms,
-            })
+            return Response(
+                {
+                    "reachable": True,
+                    "snr_to_target": signal.get("snr_to_target"),
+                    "snr_from_target": signal.get("snr_from_target"),
+                    "latency_ms": elapsed_ms,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Ping failed for node {node}: {e}", exc_info=True)
