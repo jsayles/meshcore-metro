@@ -4,11 +4,21 @@ Simple interface for reading signal data from MeshCore radio using trace command
 Used by Field Test WebSocket consumer for on-demand signal readings.
 """
 
+from __future__ import annotations
+
+import time
 import asyncio
 import logging
-import time
-from meshcore import MeshCore, SerialConnection, EventType
+
+from typing import TYPE_CHECKING
+
 from django.conf import settings
+
+from meshcore import MeshCore, SerialConnection, EventType
+
+if TYPE_CHECKING:
+    from metro.models import Node
+
 
 logger = logging.getLogger(__name__)
 
@@ -18,19 +28,19 @@ class RadioInterface:
     Interface to read signal data from MeshCore radio using trace commands.
     """
 
-    def __init__(self, port=None):
+    def __init__(self, port: str | None = None) -> None:
         """
         Initialize radio interface.
 
         Args:
             port: Serial port path (default from settings)
         """
-        self.port = port or settings.MESHCORE_SERIAL_PORT
-        self.mc = None
-        self.serial_cx = None
+        self.port: str = port or settings.MESHCORE_SERIAL_PORT
+        self.mc: MeshCore | None = None
+        self.serial_cx: SerialConnection | None = None
         logger.info(f"Radio interface initialized for {self.port}")
 
-    async def connect(self):
+    async def connect(self) -> bool:
         """Open async serial connection to radio."""
         try:
             self.serial_cx = SerialConnection(port=self.port, baudrate=settings.MESHCORE_BAUD_RATE)
@@ -42,7 +52,7 @@ class RadioInterface:
             logger.error(f"Failed to connect to radio: {e}")
             return False
 
-    async def check_connection(self):
+    async def check_connection(self) -> bool:
         """
         Check if radio is connected and responding.
 
@@ -55,7 +65,7 @@ class RadioInterface:
 
         try:
             # Check if serial connection is alive
-            if not self.serial_cx.serial or not self.serial_cx.serial.is_open:
+            if not self.serial_cx.serial or not self.serial_cx.serial.is_open:  # type: ignore[attr-defined]
                 logger.warning("Serial connection not open - attempting reconnect")
                 await self.disconnect()
                 return await self.connect()
@@ -71,14 +81,14 @@ class RadioInterface:
             await self.disconnect()
             return await self.connect()
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Close serial connection."""
         if self.mc:
             await self.mc.disconnect()
             self.mc = None
         self.serial_cx = None
 
-    async def discover_nodes(self, timeout=30):
+    async def discover_nodes(self, timeout: int = 30) -> list[dict]:
         """
         Get all repeater contacts from the radio to use as the discovery list.
 
@@ -142,7 +152,7 @@ class RadioInterface:
             logger.error(f"Failed to load contacts: {e}")
             return []
 
-    async def get_current_signal(self, target_node):
+    async def get_current_signal(self, target_node: Node) -> dict | None:
         """
         Get current signal strength by sending a trace to the target node.
 
@@ -173,13 +183,13 @@ class RadioInterface:
                 trace_received.set()
 
             subscription = self.mc.subscribe(EventType.TRACE_DATA, on_trace_data)
-            logger.info(f"Subscribed to TRACE_DATA events")
+            logger.info("Subscribed to TRACE_DATA events")
 
             try:
                 # Send trace command
                 logger.info(f"Sending trace command with path: {node_hash}")
                 await self.mc.commands.send_trace(path=node_hash)
-                logger.info(f"Trace command sent, waiting for response...")
+                logger.info("Trace command sent, waiting for response...")
 
                 # Wait for trace response (with timeout)
                 await asyncio.wait_for(trace_received.wait(), timeout=10.0)
@@ -215,16 +225,16 @@ class RadioInterface:
             logger.error(f"Failed to read signal from radio: {e}")
             return None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> RadioInterface:
         """Async context manager support."""
         await self.connect()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: type[BaseException] | None, _exc_val: BaseException | None, _exc_tb: object) -> None:
         """Async context manager support."""
         await self.disconnect()
 
-    async def get_all_contacts(self):
+    async def get_all_contacts(self) -> dict:
         """
         Get all contact data from radio for bulk operations.
 
