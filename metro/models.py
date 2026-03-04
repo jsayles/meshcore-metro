@@ -37,6 +37,13 @@ class Node(models.Model):
         help_text="Estimated coverage range in meters (used for map visualization)",
     )
 
+    # Routing
+    path = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Routing path for ping. Blank=flood, 4-char hash=direct, comma-separated=multi-hop (e.g. 46,93,46)",
+    )
+
     # Administrative fields
     is_active = models.BooleanField(default=True)
     first_seen = models.DateTimeField(auto_now_add=True)

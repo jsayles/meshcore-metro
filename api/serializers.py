@@ -10,4 +10,4 @@ class NodeSerializer(GeoFeatureModelSerializer):
     class Meta:
         model = Node
         geo_field = "location"
-        fields = ["id", "name", "mesh_identity", "role", "is_active", "last_seen", "location", "estimated_range"]
+        fields = ["id", "name", "mesh_identity", "role", "is_active", "last_seen", "location", "estimated_range", "path"]

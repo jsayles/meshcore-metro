@@ -167,10 +167,12 @@ class RadioInterface:
             return None
 
         try:
-            # Extract short hash (first 2 chars) from mesh_identity for trace path
-            # mesh_identity is like "46381bfb67f7..." we need "46"
-            node_hash = target_node.mesh_identity[:2]
-            logger.info(f"Sending trace to node {target_node.name} (hash: {node_hash})")
+            # Use the node's configured path:
+            #   blank  → flood (no path = broadcast)
+            #   "9302" → direct (4-char hash)
+            #   "46,93,46" → multi-hop fixed path
+            trace_path = target_node.path if target_node.path else None
+            logger.info(f"Sending trace to node {target_node.name} (path: {trace_path!r})")
 
             # Subscribe to trace data events
             trace_received = asyncio.Event()
@@ -187,8 +189,8 @@ class RadioInterface:
 
             try:
                 # Send trace command
-                logger.info(f"Sending trace command with path: {node_hash}")
-                await self.mc.commands.send_trace(path=node_hash)
+                logger.info(f"Sending trace command with path: {trace_path!r}")
+                await self.mc.commands.send_trace(path=trace_path)
                 logger.info("Trace command sent, waiting for response...")
 
                 # Wait for trace response (with timeout)

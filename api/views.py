@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
@@ -66,6 +67,51 @@ class NodeViewSet(viewsets.ModelViewSet):
             return Response(
                 {"error": "Failed to discover nodes. Please check radio connection."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=True, methods=["post"])
+    def ping(self, request, pk=None):
+        """
+        Ping a node by sending a trace command and waiting for a response.
+        Updates last_seen on success.
+        """
+        node = self.get_object()
+
+        try:
+            async def run_ping():
+                radio = lora_radio.RadioInterface()
+                await radio.connect()
+                try:
+                    start = time.monotonic()
+                    result = await radio.get_current_signal(node)
+                    elapsed_ms = round((time.monotonic() - start) * 1000)
+                    return result, elapsed_ms
+                finally:
+                    await radio.disconnect()
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                signal, elapsed_ms = loop.run_until_complete(run_ping())
+            finally:
+                loop.close()
+
+            if signal is None:
+                return Response({"reachable": False, "error": "No response (timeout)"})
+
+            Node.objects.filter(pk=node.pk).update(last_seen=timezone.now())
+            return Response({
+                "reachable": True,
+                "snr_to_target": signal.get("snr_to_target"),
+                "snr_from_target": signal.get("snr_from_target"),
+                "latency_ms": elapsed_ms,
+            })
+
+        except Exception as e:
+            logger.error(f"Ping failed for node {node}: {e}", exc_info=True)
+            return Response(
+                {"error": "Radio connection failed. Check the radio is connected."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
     @action(detail=False, methods=["post"])

@@ -423,12 +423,6 @@ All features share:
 - Unique constraint: (node, neighbour)
 - Enables mesh network visualization
 
-**HotspotConfig** - WiFi hotspot credentials (WiFi Configuration)
-- Singleton model (only one instance exists)
-- Fields: ssid (CharField), password (EncryptedCharField)
-- Password encrypted at rest using django-encrypted-model-fields
-- Accessed via `HotspotConfig.get_instance()` class method
-
 **Trace** - Coverage heatmap data points (Field Testing)
 - Spatial: `PointField(srid=4326)` for collection location
 - Fields: location, altitude, gps_accuracy, rssi, snr, target_node, session_id, collector_user

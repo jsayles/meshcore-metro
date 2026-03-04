@@ -60,6 +60,21 @@
                 {% endif %}
             </div>
 
+            <div class="actions">
+                <div class="route-config">
+                    <span class="info-label">Route</span>
+                    <div class="route-options">
+                        <label><input type="radio" name="route" value="direct"> Direct</label>
+                        <label><input type="radio" name="route" value="flood"> Flood</label>
+                        <label><input type="radio" name="route" value="path"> Fixed Path
+                            <input type="text" id="path-input" class="path-input" placeholder="e.g. 46,93,46">
+                        </label>
+                        <button class="btn btn-secondary btn-sm" id="save-route-btn" onclick="saveRoute()" disabled>Save</button>
+                    </div>
+                </div>
+                <button class="btn btn-primary" id="ping-btn" onclick="pingNode()" style="margin-top: 20px;">Ping</button>
+                <div id="ping-result" class="ping-result" style="display:none;"></div>
+            </div>
         </div>
 
         <!-- Map Card -->
@@ -91,6 +106,116 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+    const NODE_ID = {{ node.id }};
+    const CSRF = '{{ csrf_token }}';
+    const DIRECT_HASH = '{{ node.mesh_identity|slice:":2" }}';
+    const STORED_PATH = '{{ node.path }}';
+
+    // Initialise route radio buttons from stored path
+    function initRoute() {
+        const radios = document.querySelectorAll('input[name="route"]');
+        const pathInput = document.getElementById('path-input');
+
+        if (STORED_PATH === '') {
+            setRadio('flood');
+        } else if (STORED_PATH === DIRECT_HASH) {
+            setRadio('direct');
+        } else {
+            setRadio('path');
+            pathInput.value = STORED_PATH;
+        }
+
+        radios.forEach(r => r.addEventListener('change', onRouteChange));
+        pathInput.addEventListener('input', onPathInput);
+    }
+
+    function setRadio(value) {
+        const radio = document.querySelector(`input[name="route"][value="${value}"]`);
+        if (radio) radio.checked = true;
+        updatePathInputState(value);
+    }
+
+    function updatePathInputState(mode) {
+        const pathInput = document.getElementById('path-input');
+        pathInput.disabled = mode !== 'path';
+    }
+
+    function currentPathValue() {
+        const mode = document.querySelector('input[name="route"]:checked')?.value;
+        if (mode === 'flood') return '';
+        if (mode === 'direct') return DIRECT_HASH;
+        return document.getElementById('path-input').value.trim();
+    }
+
+    function onRouteChange(e) {
+        updatePathInputState(e.target.value);
+        document.getElementById('save-route-btn').disabled = false;
+    }
+
+    function onPathInput() {
+        document.getElementById('save-route-btn').disabled = false;
+    }
+
+    async function saveRoute() {
+        const btn = document.getElementById('save-route-btn');
+        const path = currentPathValue();
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        try {
+            const resp = await fetch(`/api/v1/nodes/${NODE_ID}/`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+                body: JSON.stringify({ path }),
+            });
+            if (!resp.ok) throw new Error('Save failed');
+            btn.textContent = 'Saved';
+            setTimeout(() => { btn.textContent = 'Save'; }, 1500);
+        } catch {
+            btn.disabled = false;
+            btn.textContent = 'Save failed';
+        }
+    }
+
+    async function pingNode() {
+        const btn = document.getElementById('ping-btn');
+        const result = document.getElementById('ping-result');
+
+        btn.disabled = true;
+        btn.textContent = 'Pinging…';
+        result.className = 'ping-result ping-pending';
+        result.textContent = 'Waiting for response…';
+        result.style.display = '';
+
+        try {
+            const resp = await fetch(`/api/v1/nodes/${NODE_ID}/ping/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': CSRF },
+            });
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                result.className = 'ping-result ping-error';
+                result.textContent = data.error || 'Radio error';
+            } else if (data.reachable) {
+                result.className = 'ping-result ping-success';
+                result.textContent =
+                    `Reachable — SNR ↑${data.snr_to_target} dB / ↓${data.snr_from_target} dB  (${data.latency_ms}ms)`;
+            } else {
+                result.className = 'ping-result ping-failure';
+                result.textContent = data.error || 'No response';
+            }
+        } catch {
+            result.className = 'ping-result ping-error';
+            result.textContent = 'Request failed';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Ping';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', initRoute);
+</script>
 <script>
     // Initialize map if location exists
     {% if node.location %}
