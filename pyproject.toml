@@ -15,13 +15,13 @@ dependencies = [
     "djangorestframework~=3.16",
     "djangorestframework-gis~=1.2",
     "psycopg~=3.3",
-    "meshcore~=2.2",
+    "meshcore~=2.3",
     "channels~=4.2",
     "channels-redis~=4.2",
     "daphne~=4.1",
     "pyserial~=3.5",
     "python-dotenv>=1.2.1",
-    "whitenoise>=6.11.0",
+    "whitenoise~=6.12",
 ]
 
 [dependency-groups]
